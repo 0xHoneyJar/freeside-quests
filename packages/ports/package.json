@@ -1,0 +1,7 @@
+{
+  "name": "@freeside-quests/ports",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TS port interfaces (hexagonal architecture). IQuestEngine + IBadgeService + IRaffleService + quest-loader. Consumers depend on these; impls bind to them.",
+  "license": "MIT"
+}

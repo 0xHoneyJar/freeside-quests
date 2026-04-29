@@ -1,0 +1,23 @@
+{
+  "name": "freeside-quests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Keeper of quest schemas — quest defs, completion criteria, badge + raffle shapes, IQuestEngine port, MCP tool specs, headless engine library, shared UI components. The freeside-* attachment module that worlds + ruggy + cubquests-dashboard impl consume.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0xHoneyJar/freeside-quests.git"
+  },
+  "workspaces": [
+    "packages/protocol",
+    "packages/ports",
+    "packages/adapters",
+    "packages/mcp-tools",
+    "packages/engine",
+    "packages/ui"
+  ],
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.7.0"
+  }
+}

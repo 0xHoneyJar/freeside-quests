@@ -1,0 +1,7 @@
+{
+  "name": "@freeside-quests/adapters",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Typed clients binding ports/ to specific transports (HTTP, NATS, webhook). Plus Subsquid indexer template parameterized for per-world deployment. One canonical adapter set every TS consumer imports.",
+  "license": "MIT"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "@freeside-quests/ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared React components for quest UIs — QuestCard, BadgeShelf, CompletionCeremony, RaffleEntryButton, ProgressBar, QuestList. Shape, not chrome — consumers skin via design tokens.",
+  "license": "MIT"
+}

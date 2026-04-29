@@ -1,0 +1,7 @@
+{
+  "name": "@freeside-quests/protocol",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sealed wire-format schemas for quest engagement — quest defs, completion criteria, badges, raffles, completion events. Consumers depend on these contracts; impls (cubquests-dashboard, future per-world quest services) satisfy them.",
+  "license": "MIT"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "@freeside-quests/engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Headless quest engine library — publish, query, complete, claim flows. Framework-agnostic. DB binding is swappable via injected ports. The part of CubQuests that's NOT the dashboard chrome.",
+  "license": "MIT"
+}
