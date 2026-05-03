@@ -2,6 +2,38 @@
   "name": "@freeside-quests/engine",
   "version": "0.1.0",
   "private": true,
-  "description": "Headless quest engine library — publish, query, complete, claim flows. Framework-agnostic. DB binding is swappable via injected ports. The part of CubQuests that's NOT the dashboard chrome.",
-  "license": "MIT"
+  "description": "Headless quest engine — substrate-step dispatch bridging (gateway → construct → resolution) + future quest publish/query/complete/claim flows. Framework-agnostic. The construct is OPENED via Effect Requirements; consumers plug in their own grader.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@freeside-quests/protocol": "workspace:*"
+  },
+  "peerDependencies": {
+    "effect": "^3.10.0"
+  },
+  "devDependencies": {
+    "effect": "^3.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
 }

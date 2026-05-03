@@ -2,6 +2,32 @@
   "name": "@freeside-quests/protocol",
   "version": "0.1.0",
   "private": true,
-  "description": "Sealed wire-format schemas for quest engagement — quest defs, completion criteria, badges, raffles, completion events. Consumers depend on these contracts; impls (cubquests-dashboard, future per-world quest services) satisfy them.",
-  "license": "MIT"
+  "description": "Sealed wire-format schemas for quest engagement — substrate-graded step submission + verdict (instance-1 · cycle 2026-05-03). Future shapes: quest defs, completion criteria, badges, raffles, completion events.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "effect": "^3.10.0"
+  },
+  "devDependencies": {
+    "effect": "^3.10.0",
+    "typescript": "^5.7.0"
+  }
 }
