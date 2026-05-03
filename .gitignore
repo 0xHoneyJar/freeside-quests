@@ -1,7 +1,23 @@
+# Dependencies
 node_modules/
-.DS_Store
-*.log
+
+# Build output
 dist/
-build/
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+
+# Environment
 .env
 .env.local
+.env.*.local
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Editor noise
+.vscode/
+.idea/
+*.swp
