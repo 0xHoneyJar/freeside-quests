@@ -34,7 +34,7 @@ import { Effect, Schema } from "effect";
 import {
   SUBSTRATE_STEP_CONTRACT_VERSION,
   SubstrateStepSubmission,
-  type SubstrateStepVerdict,
+  SubstrateStepVerdict,
 } from "@freeside-quests/protocol";
 
 // ---------------------------------------------------------------------------
@@ -172,9 +172,16 @@ export const dispatchEssayQuest = <E, R>(params: {
     const graderOutput = yield* grader(graderInput);
 
     // 4. Broaden to SubstrateStepVerdict (universal wire format).
-    const verdict: SubstrateStepVerdict = {
-      submissionId: graderOutput.submissionId,
-      traceId: graderOutput.traceId,
+    //
+    // Bridgebuilder F1 fix (cycle 2026-05-03 · security): submissionId
+    // and traceId are stamped AUTHORITATIVELY from the validated submission,
+    // NOT from grader output. An adversarial or buggy grader could swap
+    // IDs to attribute one user's verdict to another's submission;
+    // load-bearing once Kafka enters the picture (cycle-2 substrate-runtime)
+    // because verdicts will be routed by traceId at the listener boundary.
+    const verdictUnchecked = {
+      submissionId: validated.submissionId,
+      traceId: validated.traceId,
       status: graderOutput.status,
       confidence: graderOutput.confidence,
       reasoning: graderOutput.reasoning,
@@ -183,6 +190,20 @@ export const dispatchEssayQuest = <E, R>(params: {
       dimensions: graderOutput.dimensions,
       contractVersion: SUBSTRATE_STEP_CONTRACT_VERSION,
     };
+
+    // Bridgebuilder F2 fix (cycle 2026-05-03 · symmetric defense-in-depth):
+    // the inbound submission is Schema-decoded; the outbound verdict MUST
+    // be too. A grader emitting confidence: 1.5 or invalid graderConstructSlug
+    // (e.g. uppercase) previously slipped through to the resolution layer.
+    // Now the dispatcher re-validates before returning, surfacing typed
+    // DispatchError that the resolution layer can route to NEEDS_HUMAN.
+    const verdict = yield* Schema.decodeUnknown(SubstrateStepVerdict)(
+      verdictUnchecked,
+    ).pipe(
+      Effect.mapError(
+        (cause) => new DispatchError("verdict failed schema validation", cause),
+      ),
+    );
 
     return verdict;
   });

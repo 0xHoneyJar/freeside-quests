@@ -157,6 +157,112 @@ describe("dispatchEssayQuest", () => {
 
     expect(exit._tag).toBe("Failure");
   });
+
+  // ── Bridgebuilder F1 fix (cycle 2026-05-03 · authoritative ID stamping) ──
+
+  it("stamps submissionId/traceId from validated submission, IGNORING grader echo", async () => {
+    // Adversarial grader: returns DIFFERENT submissionId + traceId than
+    // what the dispatcher passed in. The dispatcher must IGNORE the grader's
+    // echo and use the validated submission's IDs. Otherwise a malicious or
+    // buggy grader could attribute one user's verdict to another's submission
+    // (load-bearing once Kafka routing-by-traceId enters in cycle-2).
+    const ADVERSARIAL_GRADER = (
+      input: EssayGraderInput,
+    ): Effect.Effect<EssayGraderOutput> =>
+      Effect.succeed({
+        status: "APPROVED",
+        confidence: 0.85,
+        reasoning: "...",
+        dimensions: { loreFit: 0.85, voiceMatch: 0.82, specificity: 0.8 },
+        submissionId: "ADVERSARIAL-SWAPPED-ID",
+        traceId: "ADVERSARIAL-SWAPPED-TRACE",
+      });
+
+    const verdict = await Effect.runPromise(
+      dispatchEssayQuest({
+        submission: makeSubmission(),
+        rubric: RUBRIC,
+        grader: ADVERSARIAL_GRADER,
+        graderConstructSlug: "lore-essay-grader",
+      }),
+    );
+
+    // Verdict carries the VALIDATED submission's IDs, not the grader's echo
+    expect(verdict.submissionId).toBe("01HW7SAMPLE");
+    expect(verdict.traceId).toBe("trace-01HW7SAMPLE");
+  });
+
+  // ── Bridgebuilder F2 fix (cycle 2026-05-03 · symmetric outbound validation) ──
+
+  it("rejects verdict with out-of-range confidence (grader emits confidence: 1.5)", async () => {
+    // Buggy grader: returns confidence > 1. The dispatcher's outbound
+    // Schema.decodeUnknown catches this; previously slipped through to
+    // the resolution layer. DispatchError surfaces; resolution can route
+    // to NEEDS_HUMAN.
+    const BUGGY_GRADER = (
+      input: EssayGraderInput,
+    ): Effect.Effect<EssayGraderOutput> =>
+      Effect.succeed({
+        status: "APPROVED",
+        confidence: 1.5, // out of [0,1] range
+        reasoning: "...",
+        dimensions: { loreFit: 0.85, voiceMatch: 0.82, specificity: 0.8 },
+        submissionId: input.submissionId,
+        traceId: input.traceId,
+      });
+
+    const exit = await Effect.runPromiseExit(
+      dispatchEssayQuest({
+        submission: makeSubmission(),
+        rubric: RUBRIC,
+        grader: BUGGY_GRADER,
+        graderConstructSlug: "lore-essay-grader",
+      }),
+    );
+
+    expect(exit._tag).toBe("Failure");
+  });
+
+  it("rejects verdict with out-of-range dimension (grader emits dimension: 1.5)", async () => {
+    const BUGGY_GRADER = (
+      input: EssayGraderInput,
+    ): Effect.Effect<EssayGraderOutput> =>
+      Effect.succeed({
+        status: "APPROVED",
+        confidence: 0.85,
+        reasoning: "...",
+        dimensions: { loreFit: 1.5, voiceMatch: 0.82, specificity: 0.8 }, // loreFit > 1
+        submissionId: input.submissionId,
+        traceId: input.traceId,
+      });
+
+    const exit = await Effect.runPromiseExit(
+      dispatchEssayQuest({
+        submission: makeSubmission(),
+        rubric: RUBRIC,
+        grader: BUGGY_GRADER,
+        graderConstructSlug: "lore-essay-grader",
+      }),
+    );
+
+    expect(exit._tag).toBe("Failure");
+  });
+
+  it("rejects verdict with invalid graderConstructSlug pattern (uppercase)", async () => {
+    // graderConstructSlug must match /^[a-z][a-z0-9-]*$/ per the protocol's
+    // ConstructSlug regex. The dispatcher's outbound Schema.decodeUnknown
+    // catches uppercase / invalid patterns.
+    const exit = await Effect.runPromiseExit(
+      dispatchEssayQuest({
+        submission: makeSubmission(),
+        rubric: RUBRIC,
+        grader: APPROVED_GRADER,
+        graderConstructSlug: "LoreEssayGrader", // uppercase — invalid
+      }),
+    );
+
+    expect(exit._tag).toBe("Failure");
+  });
 });
 
 // ---------------------------------------------------------------------------
