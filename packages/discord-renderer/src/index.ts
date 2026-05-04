@@ -2,13 +2,13 @@
  * @freeside-quests/discord-renderer — Discord interaction descriptor emitter.
  *
  * Per Cycle Q SDD §5 + PRD D1:
- *   - 5 dispatch handlers (slash · button · modal · embed · thread)
- *   - Emits APIInteractionResponse descriptors
+ *   - Dispatches slash · button · modal · embed · thread descriptors
+ *   - Emits APIInteractionResponse descriptors only
  *   - Does NOT depend on discord.js (A1 architect lock)
  *   - Does NOT call the Discord API (the consumer bot owns dispatch)
  *
- * Sprint 1 SCAFFOLD ships the 5 dispatch signatures with placeholder
- * descriptors. Sprint 3 BOT WIRING lands:
+ * Sprint 1 SCAFFOLD landed the 5 dispatch signatures with placeholder
+ * descriptors. Sprint 3 BOT WIRING (this commit) lands:
  *   - CMP-boundary transforms (cmp-boundary/transforms.ts · 7 transforms)
  *   - Full state-machine wiring via QuestStatePort
  *   - render-quest-list / render-quest-detail / render-verdict / render-badge-reveal
@@ -21,13 +21,24 @@ import type {
   APIChatInputApplicationCommandInteraction,
 } from "discord-api-types/v10";
 import { ApplicationCommandType } from "discord-api-types/v10";
+import { QuestStatePort } from "@freeside-quests/engine";
+import type { PlayerIdentity } from "@freeside-quests/protocol";
 import { handleButton } from "./button-handler.js";
 import { handleModalSubmit } from "./modal-handler.js";
-import { handleSlashCommand } from "./slash-command-handler.js";
+import {
+  handleSlashCommand,
+  type EngineConfigShape,
+  type QuestCatalog,
+} from "./slash-command-handler.js";
+import type {
+  CharacterRegistry,
+  CuratorVoiceProfile,
+} from "./cmp-boundary/transforms.js";
 import {
   type APIInteraction,
   type APIInteractionResponse,
-  type EngineConfigStub,
+  type APIMessageComponentInteraction,
+  type APIModalSubmitInteraction,
   InteractionResponseType,
   InteractionType,
   MessageFlags,
@@ -38,32 +49,54 @@ const isChatInputCommand = (
 ): interaction is APIChatInputApplicationCommandInteraction =>
   interaction.data.type === ApplicationCommandType.ChatInput;
 
+/**
+ * Per-dispatch context the bot consumer constructs before invoking
+ * `dispatchQuestInteraction`. Each field is per-guild + per-invocation.
+ *
+ * The bot consumer:
+ *   1. resolves the world from `interaction.guild_id` via world-resolver
+ *   2. builds `EngineConfigShape` from world-manifest's quest_engine_config
+ *   3. resolves `player` from interaction.member.user (anon-default per D4)
+ *   4. provides QuestStatePort Layer per-world (postgres adapter for prod)
+ */
 export interface DispatchInput {
   readonly interaction: APIInteraction;
-  readonly config: EngineConfigStub;
+  readonly config: EngineConfigShape;
+  readonly catalog: QuestCatalog;
+  readonly characters: CharacterRegistry;
+  readonly voice: CuratorVoiceProfile;
+  readonly player: PlayerIdentity;
 }
 
 /**
  * Single dispatch entry-point for ALL quest_* interactions (per SDD §5.2).
  *
- * Sprint 1 SCAFFOLD: routes by InteractionType + returns placeholder descriptor.
- * Sprint 3 BOT WIRING: full routing + CMP transforms + QuestStatePort dependency.
+ * Returns a Discord interaction response descriptor (deferred ACK + later
+ * follow-up via webhook · NOT a direct Discord API call).
  *
- * NOTE: Sprint 1 declares this as `Effect.Effect<..., never, never>` (no
- * QuestStatePort dependency yet). Sprint 2 lands QuestStatePort, Sprint 3 wires
- * it in — at which point the signature becomes
- * `Effect.Effect<APIInteractionResponse, never, QuestStatePort>` per SDD §5.2.
+ * Routing:
+ *   slash command "quest" → slash-command-handler.ts
+ *   button custom_id "quest_accept_<id>" → button-handler.ts (acceptButton)
+ *   button custom_id "quest_submit_<id>" → button-handler.ts (opens modal)
+ *   button custom_id "quest_skip_<id>"   → button-handler.ts (no-op ack)
+ *   modal_submit custom_id "quest_submission_<id>" → modal-handler.ts
+ *
+ * CMP-boundary discipline: every output runs through cmp-boundary/transforms.ts
+ * before serialization. Test-guarded via cmp-boundary.test.ts.
+ *
+ * Dependencies (per Effect Context · provided by the bot consumer):
+ *   - QuestStatePort (per-world · memory for dev · postgres for prod)
  */
 export const dispatchQuestInteraction = (
   input: DispatchInput,
-): Effect.Effect<APIInteractionResponse, never, never> => {
+): Effect.Effect<APIInteractionResponse, never, QuestStatePort> => {
   switch (input.interaction.type) {
     case InteractionType.ApplicationCommand:
       if (!isChatInputCommand(input.interaction)) {
         return Effect.succeed({
           type: InteractionResponseType.ChannelMessageWithSource,
           data: {
-            content: "[scaffold] non-chat-input application command",
+            content: "the wind is silent · unsupported command kind",
             flags: MessageFlags.Ephemeral,
           },
         } satisfies APIInteractionResponse);
@@ -71,22 +104,34 @@ export const dispatchQuestInteraction = (
       return handleSlashCommand({
         interaction: input.interaction,
         config: input.config,
+        catalog: input.catalog,
+        characters: input.characters,
+        voice: input.voice,
+        player: input.player,
       });
     case InteractionType.MessageComponent:
       return handleButton({
-        interaction: input.interaction,
+        interaction: input.interaction as APIMessageComponentInteraction,
         config: input.config,
+        catalog: input.catalog,
+        characters: input.characters,
+        voice: input.voice,
+        player: input.player,
       });
     case InteractionType.ModalSubmit:
       return handleModalSubmit({
-        interaction: input.interaction,
+        interaction: input.interaction as APIModalSubmitInteraction,
         config: input.config,
+        catalog: input.catalog,
+        characters: input.characters,
+        voice: input.voice,
+        player: input.player,
       });
     default:
       return Effect.succeed({
         type: InteractionResponseType.ChannelMessageWithSource,
         data: {
-          content: "[scaffold] unsupported interaction type",
+          content: "unsupported interaction type",
           flags: MessageFlags.Ephemeral,
         },
       } satisfies APIInteractionResponse);
@@ -94,8 +139,15 @@ export const dispatchQuestInteraction = (
 };
 
 export { handleSlashCommand } from "./slash-command-handler.js";
+export type {
+  SlashCommandInput,
+  EngineConfigShape,
+  QuestCatalog,
+} from "./slash-command-handler.js";
 export { handleButton } from "./button-handler.js";
+export type { ButtonInput } from "./button-handler.js";
 export { handleModalSubmit } from "./modal-handler.js";
+export type { ModalInput } from "./modal-handler.js";
 export { buildQuestEmbed } from "./embed-builder.js";
 export type {
   EmbedBuildInput,
@@ -106,9 +158,29 @@ export type {
   ThreadCreateDescriptor,
   ThreadSpawnInput,
 } from "./thread-spawner.js";
-export type { SlashCommandInput } from "./slash-command-handler.js";
-export type { ButtonInput } from "./button-handler.js";
-export type { ModalInput } from "./modal-handler.js";
+export {
+  renderQuestList,
+} from "./cmp-boundary/render-quest-list.js";
+export {
+  renderQuestDetail,
+  type QuestDetailRender,
+} from "./cmp-boundary/render-quest-detail.js";
+export { renderVerdict } from "./cmp-boundary/render-verdict.js";
+export { renderBadgeReveal } from "./cmp-boundary/render-badge-reveal.js";
+export {
+  transforms,
+  questIdToTitle,
+  npcIdToDisplayName,
+  walletToHandle,
+  phaseToNarrative,
+  verdictToNarrative,
+  badgeUriToVariant,
+  filterTelemetryFromOutput,
+  type CharacterRegistry,
+  type CuratorVoiceProfile,
+  type AuthCheck,
+  type ConsumerConstraint,
+} from "./cmp-boundary/transforms.js";
 export type {
   APIInteraction,
   APIInteractionResponse,

@@ -26,7 +26,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@freeside-quests/protocol": "workspace:*"
+    "@freeside-quests/protocol": "workspace:*",
+    "@freeside-quests/engine": "workspace:*"
   },
   "peerDependencies": {
     "discord-api-types": "^0.37.0",
