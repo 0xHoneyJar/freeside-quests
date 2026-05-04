@@ -21,17 +21,17 @@ export {
   InteractionResponseType,
   InteractionType,
   MessageFlags,
+  ComponentType,
+  TextInputStyle,
 } from "discord-api-types/v10";
 
 /**
- * Sprint 1 SCAFFOLD-only EngineConfig stub.
+ * Public EngineConfig type alias — re-exported from
+ * `@freeside-quests/engine` so consumers compose against the canonical
+ * shape (Sprint 2 ENGINE+PERSIST landed the source-of-truth Schema).
  *
- * Sprint 2 (P2 ENGINE+PERSIST) lands the canonical `EngineConfig` in
- * `@freeside-quests/engine`. This stub exists so the dispatch signatures
- * type-check standalone in Sprint 1.
- *
- * When Sprint 2 lands, replace with:
- *   import type { EngineConfig } from "@freeside-quests/engine";
+ * Sprint 1's EngineConfigStub is preserved as a deprecated alias for
+ * backwards compatibility with the SCAFFOLD smoke tests.
  */
 export interface EngineConfigStub {
   readonly questAcceptanceMode: "open-badge-gated" | "open" | "anon-allowed";

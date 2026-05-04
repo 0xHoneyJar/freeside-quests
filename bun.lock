@@ -17,6 +17,7 @@
       "name": "@freeside-quests/discord-renderer",
       "version": "0.1.0",
       "dependencies": {
+        "@freeside-quests/engine": "workspace:*",
         "@freeside-quests/protocol": "workspace:*",
       },
       "devDependencies": {

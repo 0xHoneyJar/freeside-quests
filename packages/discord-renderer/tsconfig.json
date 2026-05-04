@@ -22,5 +22,5 @@
     "composite": true
   },
   "include": ["src/**/*"],
-  "references": [{ "path": "../protocol" }]
+  "references": [{ "path": "../protocol" }, { "path": "../engine" }]
 }
