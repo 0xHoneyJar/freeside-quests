@@ -18,15 +18,52 @@ This package emits `APIInteractionResponse` descriptors. It does NOT call the Di
 **Allowed dependency**: `discord-api-types` (types ONLY, no runtime).
 **Forbidden dependency**: `discord.js` (or any runtime Discord client). The component-isolation guard test enforces this.
 
-## Public surface (post-Sprint-3 · stubs in Sprint-1)
+## Public surface
+
+### Sprint 1 (current · scaffold)
+
+`dispatchQuestInteraction` ships a no-requirement Effect that routes by `InteractionType` and returns a placeholder ephemeral descriptor. No layer-providing is needed yet — the dispatch has `never` requirements.
 
 ```typescript
+import { Effect } from "effect";
 import { dispatchQuestInteraction } from "@freeside-quests/discord-renderer";
 
+// Sprint 1: signature is Effect.Effect<APIInteractionResponse, never, never>
+const response = await Effect.runPromise(
+  dispatchQuestInteraction({
+    interaction,
+    config: engineConfigForCurrentWorld(), // EngineConfigStub for Sprint 1
+  }),
+);
+```
+
+### Sprint 3 (forward-pointing · post-QuestStatePort)
+
+Once Sprint 2 lands `QuestStatePort` and Sprint 3 wires it in, the dispatch signature widens to require the port — at which point the consumer provides a layer:
+
+```typescript
+import { Effect, Layer } from "effect";
+import { dispatchQuestInteraction } from "@freeside-quests/discord-renderer";
+import {
+  QuestStatePortPostgresLayer,
+  AuthCheckPortAnonLayer,
+  BadgeIssuancePortNullLayer,
+} from "@freeside-quests/engine"; // Sprint 2+
+
+// Sprint 3: signature becomes Effect.Effect<APIInteractionResponse, never, QuestStatePort>
 const response = await dispatchQuestInteraction({
   interaction,
   config: engineConfigForCurrentWorld(),
-}).pipe(Effect.provide(QuestStatePortLayer), Effect.runPromise);
+}).pipe(
+  Effect.provide(
+    Layer.mergeAll(
+      QuestStatePortPostgresLayer({ pool_config: pgConfig, world_slug }),
+      AuthCheckPortAnonLayer,
+      BadgeIssuancePortNullLayer,
+    ),
+  ),
+  Effect.runPromise,
+);
 ```
 
 Sprint 1 ships placeholder descriptors that route correctly but return a stub response. Sprint 3 lands the full CMP-boundary transforms + dispatch routing.
