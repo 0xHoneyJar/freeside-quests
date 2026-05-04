@@ -31,7 +31,7 @@ import {
   NpcId,
   PlayerWallet,
   DiscordId,
-} from "@freeside-quests/protocol";
+} from "@0xhoneyjar/quests-protocol";
 
 // ---------------------------------------------------------------------------
 // Fixtures

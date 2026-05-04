@@ -29,7 +29,7 @@ import type {
   Quest,
   QuestState,
   QuestVerdict,
-} from "@freeside-quests/protocol";
+} from "@0xhoneyjar/quests-protocol";
 
 // ---------------------------------------------------------------------------
 // Supporting types

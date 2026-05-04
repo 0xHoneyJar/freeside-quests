@@ -2,7 +2,7 @@
  * component-isolation.test.tsx — LOAD-BEARING anti-pattern guard
  *
  * Per Cycle Q SDD §6.3 + PRD D2:
- *   This test FAILS the build if any source file in @freeside-quests/ui imports
+ *   This test FAILS the build if any source file in @0xhoneyjar/quests-ui imports
  *   a `.css` file or contains a JSX `style={...}` attribute.
  *
  * Why this is load-bearing:
@@ -44,7 +44,7 @@ const stripComments = (source: string): string =>
     // Line comments — preserve newlines so line numbers stay aligned
     .replace(/\/\/.*$/gm, "");
 
-describe("@freeside-quests/ui component isolation", () => {
+describe("@0xhoneyjar/quests-ui component isolation", () => {
   const files = collectSourceFiles(SRC_DIR);
 
   it("ships at least one source file (sanity)", () => {

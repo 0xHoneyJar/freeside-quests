@@ -1,5 +1,5 @@
 /**
- * @freeside-quests/protocol — sealed wire-format schemas for quest engagement.
+ * @0xhoneyjar/quests-protocol — sealed wire-format schemas for quest engagement.
  *
  * Cycle-1 (2026-05-03) lands the substrate-step submission/verdict pair —
  * the over-the-wire envelope for substrate-graded activity steps in

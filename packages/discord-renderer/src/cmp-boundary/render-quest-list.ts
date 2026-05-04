@@ -11,7 +11,7 @@
  */
 
 import type { APIEmbed } from "discord-api-types/v10";
-import type { Quest } from "@freeside-quests/protocol";
+import type { Quest } from "@0xhoneyjar/quests-protocol";
 import {
   filterTelemetryFromOutput,
   questIdToTitle,

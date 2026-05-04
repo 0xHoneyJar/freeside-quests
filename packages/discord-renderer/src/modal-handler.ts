@@ -16,13 +16,13 @@ import { Effect } from "effect";
 import {
   QuestStatePort,
   submit,
-} from "@freeside-quests/engine";
+} from "@0xhoneyjar/quests-engine";
 import {
   QUEST_CONTRACT_VERSION,
   type PlayerIdentity,
   type QuestState,
   type SubmissionEnvelope,
-} from "@freeside-quests/protocol";
+} from "@0xhoneyjar/quests-protocol";
 import {
   filterTelemetryFromOutput,
   npcIdToDisplayName,

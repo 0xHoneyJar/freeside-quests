@@ -13,11 +13,11 @@ import { Effect, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   QuestStatePortMemoryLayer,
-} from "@freeside-quests/engine";
+} from "@0xhoneyjar/quests-engine";
 import type {
   PlayerIdentity,
   Quest,
-} from "@freeside-quests/protocol";
+} from "@0xhoneyjar/quests-protocol";
 import { buildQuestEmbed } from "../src/embed-builder.js";
 import {
   dispatchQuestInteraction,
@@ -117,7 +117,7 @@ const runWithMemoryLayer = <A>(
   effect: Effect.Effect<A, never, ReturnType<typeof QuestStatePortMemoryLayer>["_R"]>,
 ): Promise<A> => Effect.runPromise(effect.pipe(Effect.provide(QuestStatePortMemoryLayer)));
 
-describe("@freeside-quests/discord-renderer · sprint-3 dispatch routing", () => {
+describe("@0xhoneyjar/quests-discord-renderer · sprint-3 dispatch routing", () => {
   it("routes ApplicationCommand /quest browse to slash handler", async () => {
     const result = await runWithMemoryLayer(
       dispatchQuestInteraction(buildInput(slashCommand)),

@@ -1,4 +1,4 @@
-# `@freeside-quests/discord-renderer` — Discord interaction descriptor emitter
+# `@0xhoneyjar/quests-discord-renderer` — Discord interaction descriptor emitter
 
 Discord-component descriptor emitter for quest interactions. Cross-bot installable per `[[freeside-modules-as-installables]]`.
 
@@ -26,7 +26,7 @@ This package emits `APIInteractionResponse` descriptors. It does NOT call the Di
 
 ```typescript
 import { Effect } from "effect";
-import { dispatchQuestInteraction } from "@freeside-quests/discord-renderer";
+import { dispatchQuestInteraction } from "@0xhoneyjar/quests-discord-renderer";
 
 // Sprint 1: signature is Effect.Effect<APIInteractionResponse, never, never>
 const response = await Effect.runPromise(
@@ -43,12 +43,12 @@ Once Sprint 2 lands `QuestStatePort` and Sprint 3 wires it in, the dispatch sign
 
 ```typescript
 import { Effect, Layer } from "effect";
-import { dispatchQuestInteraction } from "@freeside-quests/discord-renderer";
+import { dispatchQuestInteraction } from "@0xhoneyjar/quests-discord-renderer";
 import {
   QuestStatePortPostgresLayer,
   AuthCheckPortAnonLayer,
   BadgeIssuancePortNullLayer,
-} from "@freeside-quests/engine"; // Sprint 2+
+} from "@0xhoneyjar/quests-engine"; // Sprint 2+
 
 // Sprint 3: signature becomes Effect.Effect<APIInteractionResponse, never, QuestStatePort>
 const response = await dispatchQuestInteraction({

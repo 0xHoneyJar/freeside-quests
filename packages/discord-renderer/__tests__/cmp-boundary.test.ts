@@ -19,7 +19,7 @@ import type {
   Quest,
   QuestState,
   QuestVerdict,
-} from "@freeside-quests/protocol";
+} from "@0xhoneyjar/quests-protocol";
 import { renderBadgeReveal } from "../src/cmp-boundary/render-badge-reveal.js";
 import { renderQuestDetail } from "../src/cmp-boundary/render-quest-detail.js";
 import { renderQuestList } from "../src/cmp-boundary/render-quest-list.js";

@@ -57,7 +57,7 @@ import {
   PlayerWallet,
   DiscordId,
   SubmissionId,
-} from "@freeside-quests/protocol";
+} from "@0xhoneyjar/quests-protocol";
 
 import { transitions, type Clock } from "../../quest-state-machine.js";
 import { QuestStatePort } from "../../persistence/port.js";

@@ -1,7 +1,7 @@
 /**
  * Substrate-Step Protocol — wire-format contract for substrate-graded
  * activity steps in cubquests-interface (and any future world that imports
- * `@freeside-quests/protocol`).
+ * `@0xhoneyjar/quests-protocol`).
  *
  * Companion to `cubquests-interface/types/activities.ts`'s
  * `OffchainStepConfig`. Today that config supports verificationType

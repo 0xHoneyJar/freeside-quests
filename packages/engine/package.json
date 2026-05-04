@@ -1,7 +1,7 @@
 {
-  "name": "@freeside-quests/engine",
+  "name": "@0xhoneyjar/quests-engine",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "description": "Headless quest engine — substrate-step dispatch bridging (gateway → construct → resolution) + future quest publish/query/complete/claim flows. Framework-agnostic. The construct is OPENED via Effect Requirements; consumers plug in their own grader.",
   "license": "MIT",
   "type": "module",
@@ -25,8 +25,27 @@
     "test:watch": "vitest",
     "clean": "rm -rf dist"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0xHoneyJar/freeside-quests.git",
+    "directory": "packages/engine"
+  },
+  "homepage": "https://github.com/0xHoneyJar/freeside-quests/tree/master/packages/engine#readme",
+  "bugs": {
+    "url": "https://github.com/0xHoneyJar/freeside-quests/issues"
+  },
+  "keywords": [
+    "freeside",
+    "quests",
+    "engine",
+    "effect",
+    "state-machine"
+  ],
   "dependencies": {
-    "@freeside-quests/protocol": "workspace:*"
+    "@0xhoneyjar/quests-protocol": "workspace:*"
   },
   "peerDependencies": {
     "effect": "^3.10.0",

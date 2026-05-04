@@ -23,7 +23,7 @@ import {
   QuestId,
   PlayerWallet,
   DiscordId,
-} from "@freeside-quests/protocol";
+} from "@0xhoneyjar/quests-protocol";
 
 const QUEST_ID = Schema.decodeSync(QuestId)("quest-x-001");
 const WALLET = Schema.decodeSync(PlayerWallet)(`0x${"a".repeat(40)}`);

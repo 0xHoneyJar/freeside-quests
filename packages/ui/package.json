@@ -1,7 +1,7 @@
 {
-  "name": "@freeside-quests/ui",
-  "version": "0.2.0",
-  "private": true,
+  "name": "@0xhoneyjar/quests-ui",
+  "version": "0.1.0",
+  "private": false,
   "description": "Unstyled React primitives for quest UIs — slot-based composition, zero CSS, zero design tokens. Consumers (cubquests-dashboard · per-world bots · future Farcaster Mini App) ship their own skin. Per Cycle Q SDD §6 + PRD D2 anti-pattern guard.",
   "license": "MIT",
   "type": "module",
@@ -25,8 +25,27 @@
     "test:watch": "vitest",
     "clean": "rm -rf dist"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0xHoneyJar/freeside-quests.git",
+    "directory": "packages/ui"
+  },
+  "homepage": "https://github.com/0xHoneyJar/freeside-quests/tree/master/packages/ui#readme",
+  "bugs": {
+    "url": "https://github.com/0xHoneyJar/freeside-quests/issues"
+  },
+  "keywords": [
+    "freeside",
+    "quests",
+    "react",
+    "unstyled",
+    "primitives"
+  ],
   "dependencies": {
-    "@freeside-quests/protocol": "workspace:*"
+    "@0xhoneyjar/quests-protocol": "workspace:*"
   },
   "peerDependencies": {
     "react": "^18.3.0"

@@ -1,5 +1,5 @@
 /**
- * @freeside-quests/engine — headless quest engine.
+ * @0xhoneyjar/quests-engine — headless quest engine.
  *
  * Cycle-1 (2026-05-03) lands the substrate-step dispatch bridging
  * (Plane-3 gateway/listener logic).

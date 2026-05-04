@@ -1,4 +1,4 @@
-# `@freeside-quests/ui` — unstyled React primitives
+# `@0xhoneyjar/quests-ui` — unstyled React primitives
 
 5 slot-based React primitives for quest UIs. Shape, not chrome — every consumer (cubquests-dashboard, per-world bots, future Farcaster Mini App) ships its own skin atop these primitives.
 
@@ -26,7 +26,7 @@ Per `[[freeside-modules-as-installables]]` §"What goes into a module's `package
 
 ```tsx
 // cubquests-dashboard (Tailwind skin)
-import { QuestCard } from "@freeside-quests/ui";
+import { QuestCard } from "@0xhoneyjar/quests-ui";
 <QuestCard
   quest={quest}
   Title={({ quest }) => <h2 className="text-2xl font-bold">{quest.title}</h2>}
@@ -36,10 +36,10 @@ import { QuestCard } from "@freeside-quests/ui";
 />
 
 // per-world bot (server-side render · zero React runtime)
-// uses @freeside-quests/discord-renderer · NOT @freeside-quests/ui · this is the boundary
+// uses @0xhoneyjar/quests-discord-renderer · NOT @0xhoneyjar/quests-ui · this is the boundary
 
 // future Farcaster Mini App (Vite skin)
-import { QuestCard } from "@freeside-quests/ui";
+import { QuestCard } from "@0xhoneyjar/quests-ui";
 <QuestCard quest={quest} Title={MyTitle} Description={MyDescription} ... />
 ```
 
@@ -48,7 +48,7 @@ import { QuestCard } from "@freeside-quests/ui";
 - World-specific quest CONTENT renderers (each world's quest detail page is its own app code)
 - Operator-facing dashboard chrome (stays in consumer apps)
 - Auth wires (each world's Identity Component handles auth)
-- Discord rendering (use `@freeside-quests/discord-renderer` — different boundary, different transport)
+- Discord rendering (use `@0xhoneyjar/quests-discord-renderer` — different boundary, different transport)
 - CSS / Tailwind / styled-components / design tokens (anti-pattern guard above)
 
 ## Consumers (planned · post-Cycle Q)
