@@ -1,6 +1,6 @@
 {
   "name": "@0xhoneyjar/quests-ui",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "description": "Unstyled React primitives for quest UIs — slot-based composition, zero CSS, zero design tokens. Consumers (cubquests-dashboard · per-world bots · future Farcaster Mini App) ship their own skin. Per Cycle Q SDD §6 + PRD D2 anti-pattern guard.",
   "license": "MIT",
@@ -45,7 +45,7 @@
     "primitives"
   ],
   "dependencies": {
-    "@0xhoneyjar/quests-protocol": "workspace:*"
+    "@0xhoneyjar/quests-protocol": "^0.1.1"
   },
   "peerDependencies": {
     "react": "^18.3.0"
