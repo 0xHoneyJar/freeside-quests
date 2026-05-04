@@ -1,8 +1,8 @@
 {
-  "name": "@freeside-quests/ui",
-  "version": "0.2.0",
+  "name": "@freeside-quests/discord-renderer",
+  "version": "0.1.0",
   "private": true,
-  "description": "Unstyled React primitives for quest UIs — slot-based composition, zero CSS, zero design tokens. Consumers (cubquests-dashboard · per-world bots · future Farcaster Mini App) ship their own skin. Per Cycle Q SDD §6 + PRD D2 anti-pattern guard.",
+  "description": "Discord-component descriptor emitter for quest interactions. Emits APIInteractionResponse descriptors — does NOT dispatch (the bot owns dispatch). Cross-bot installable per [[freeside-modules-as-installables]]. Per Cycle Q SDD §5 + PRD D1.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -29,15 +29,12 @@
     "@freeside-quests/protocol": "workspace:*"
   },
   "peerDependencies": {
-    "react": "^18.3.0"
+    "discord-api-types": "^0.37.0",
+    "effect": "^3.10.0"
   },
   "devDependencies": {
-    "@testing-library/react": "^16.0.0",
-    "@types/react": "^18.3.0",
-    "@types/react-dom": "^18.3.0",
-    "happy-dom": "^15.0.0",
-    "react": "^18.3.0",
-    "react-dom": "^18.3.0",
+    "discord-api-types": "^0.37.100",
+    "effect": "^3.10.0",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"
   }

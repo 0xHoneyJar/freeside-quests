@@ -14,7 +14,8 @@
     "packages/adapters",
     "packages/mcp-tools",
     "packages/engine",
-    "packages/ui"
+    "packages/ui",
+    "packages/discord-renderer"
   ],
   "devDependencies": {
     "@types/bun": "latest",
