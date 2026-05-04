@@ -1,6 +1,6 @@
 {
   "name": "@0xhoneyjar/quests-protocol",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "description": "Sealed wire-format schemas for quest engagement — substrate-graded step submission + verdict (instance-1 · cycle 2026-05-03). Future shapes: quest defs, completion criteria, badges, raffles, completion events.",
   "license": "MIT",
