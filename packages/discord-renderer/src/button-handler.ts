@@ -16,13 +16,13 @@ import {
   QuestStatePort,
   accept,
   systemClock,
-} from "@freeside-quests/engine";
+} from "@0xhoneyjar/quests-engine";
 import {
   QUEST_CONTRACT_VERSION,
   type PlayerIdentity,
   type Quest,
   type QuestState,
-} from "@freeside-quests/protocol";
+} from "@0xhoneyjar/quests-protocol";
 import {
   filterTelemetryFromOutput,
   npcIdToDisplayName,

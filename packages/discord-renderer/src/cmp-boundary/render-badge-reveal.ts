@@ -12,7 +12,7 @@
  */
 
 import type { APIEmbed } from "discord-api-types/v10";
-import type { BadgeArtifact, QuestState } from "@freeside-quests/protocol";
+import type { BadgeArtifact, QuestState } from "@0xhoneyjar/quests-protocol";
 import {
   badgeUriToVariant,
   filterTelemetryFromOutput,

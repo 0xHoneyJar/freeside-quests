@@ -19,13 +19,13 @@ import {
   QuestStatePort,
   accept,
   systemClock,
-} from "@freeside-quests/engine";
+} from "@0xhoneyjar/quests-engine";
 import type {
   PlayerIdentity,
   Quest,
   QuestState,
-} from "@freeside-quests/protocol";
-import { QUEST_CONTRACT_VERSION } from "@freeside-quests/protocol";
+} from "@0xhoneyjar/quests-protocol";
+import { QUEST_CONTRACT_VERSION } from "@0xhoneyjar/quests-protocol";
 import { renderQuestDetail } from "./cmp-boundary/render-quest-detail.js";
 import { renderQuestList } from "./cmp-boundary/render-quest-list.js";
 import {
@@ -64,7 +64,7 @@ export interface QuestCatalog {
 }
 
 /**
- * Per-world EngineConfig — mirrors @freeside-quests/engine EngineConfig.
+ * Per-world EngineConfig — mirrors @0xhoneyjar/quests-engine EngineConfig.
  * (Re-declared here as a structural type to avoid a hard dep on engine's
  * Schema export at the descriptor-emitter layer.)
  */

@@ -14,11 +14,11 @@
       "version": "0.1.0",
     },
     "packages/discord-renderer": {
-      "name": "@freeside-quests/discord-renderer",
+      "name": "@0xhoneyjar/quests-discord-renderer",
       "version": "0.1.0",
       "dependencies": {
-        "@freeside-quests/engine": "workspace:*",
-        "@freeside-quests/protocol": "workspace:*",
+        "@0xhoneyjar/quests-engine": "workspace:*",
+        "@0xhoneyjar/quests-protocol": "workspace:*",
       },
       "devDependencies": {
         "discord-api-types": "^0.37.100",
@@ -32,10 +32,10 @@
       },
     },
     "packages/engine": {
-      "name": "@freeside-quests/engine",
+      "name": "@0xhoneyjar/quests-engine",
       "version": "0.1.0",
       "dependencies": {
-        "@freeside-quests/protocol": "workspace:*",
+        "@0xhoneyjar/quests-protocol": "workspace:*",
       },
       "devDependencies": {
         "@types/pg": "^8.11.0",
@@ -61,7 +61,7 @@
       "version": "0.1.0",
     },
     "packages/protocol": {
-      "name": "@freeside-quests/protocol",
+      "name": "@0xhoneyjar/quests-protocol",
       "version": "0.1.0",
       "devDependencies": {
         "effect": "^3.10.0",
@@ -72,10 +72,10 @@
       },
     },
     "packages/ui": {
-      "name": "@freeside-quests/ui",
-      "version": "0.2.0",
+      "name": "@0xhoneyjar/quests-ui",
+      "version": "0.1.0",
       "dependencies": {
-        "@freeside-quests/protocol": "workspace:*",
+        "@0xhoneyjar/quests-protocol": "workspace:*",
       },
       "devDependencies": {
         "@testing-library/react": "^16.0.0",
@@ -93,6 +93,14 @@
     },
   },
   "packages": {
+    "@0xhoneyjar/quests-discord-renderer": ["@0xhoneyjar/quests-discord-renderer@workspace:packages/discord-renderer"],
+
+    "@0xhoneyjar/quests-engine": ["@0xhoneyjar/quests-engine@workspace:packages/engine"],
+
+    "@0xhoneyjar/quests-protocol": ["@0xhoneyjar/quests-protocol@workspace:packages/protocol"],
+
+    "@0xhoneyjar/quests-ui": ["@0xhoneyjar/quests-ui@workspace:packages/ui"],
+
     "@babel/code-frame": ["@babel/code-frame@7.29.0", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.28.5", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw=="],
 
     "@babel/helper-validator-identifier": ["@babel/helper-validator-identifier@7.28.5", "", {}, "sha512-qSs4ifwzKJSV39ucNjsvc6WVHs6b7S03sOh2OcHF9UHfVPqWWALUsNUVzhSBiItjRZoLHx7nIarVjqKVusUZ1Q=="],
@@ -147,17 +155,9 @@
 
     "@freeside-quests/adapters": ["@freeside-quests/adapters@workspace:packages/adapters"],
 
-    "@freeside-quests/discord-renderer": ["@freeside-quests/discord-renderer@workspace:packages/discord-renderer"],
-
-    "@freeside-quests/engine": ["@freeside-quests/engine@workspace:packages/engine"],
-
     "@freeside-quests/mcp-tools": ["@freeside-quests/mcp-tools@workspace:packages/mcp-tools"],
 
     "@freeside-quests/ports": ["@freeside-quests/ports@workspace:packages/ports"],
-
-    "@freeside-quests/protocol": ["@freeside-quests/protocol@workspace:packages/protocol"],
-
-    "@freeside-quests/ui": ["@freeside-quests/ui@workspace:packages/ui"],
 
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
 

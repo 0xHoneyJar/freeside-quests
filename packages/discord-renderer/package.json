@@ -1,7 +1,7 @@
 {
-  "name": "@freeside-quests/discord-renderer",
+  "name": "@0xhoneyjar/quests-discord-renderer",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "description": "Discord-component descriptor emitter for quest interactions. Emits APIInteractionResponse descriptors — does NOT dispatch (the bot owns dispatch). Cross-bot installable per [[freeside-modules-as-installables]]. Per Cycle Q SDD §5 + PRD D1.",
   "license": "MIT",
   "type": "module",
@@ -25,9 +25,27 @@
     "test:watch": "vitest",
     "clean": "rm -rf dist"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0xHoneyJar/freeside-quests.git",
+    "directory": "packages/discord-renderer"
+  },
+  "homepage": "https://github.com/0xHoneyJar/freeside-quests/tree/master/packages/discord-renderer#readme",
+  "bugs": {
+    "url": "https://github.com/0xHoneyJar/freeside-quests/issues"
+  },
+  "keywords": [
+    "freeside",
+    "quests",
+    "discord",
+    "interaction-response"
+  ],
   "dependencies": {
-    "@freeside-quests/protocol": "workspace:*",
-    "@freeside-quests/engine": "workspace:*"
+    "@0xhoneyjar/quests-protocol": "workspace:*",
+    "@0xhoneyjar/quests-engine": "workspace:*"
   },
   "peerDependencies": {
     "discord-api-types": "^0.37.0",

@@ -28,7 +28,7 @@ import {
   NpcId,
   BadgeFamilyId,
   WorldSlug,
-} from "@freeside-quests/protocol";
+} from "@0xhoneyjar/quests-protocol";
 
 import {
   AuthCheckPort,

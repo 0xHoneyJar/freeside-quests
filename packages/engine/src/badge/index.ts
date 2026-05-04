@@ -31,7 +31,7 @@ import {
   type QuestVerdict,
   type PlayerIdentity,
   type BadgeArtifact,
-} from "@freeside-quests/protocol";
+} from "@0xhoneyjar/quests-protocol";
 
 // ---------------------------------------------------------------------------
 // Cross-pack Tag identity contract — load-bearing constant

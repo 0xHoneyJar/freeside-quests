@@ -1,7 +1,7 @@
 {
-  "name": "@freeside-quests/protocol",
+  "name": "@0xhoneyjar/quests-protocol",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "description": "Sealed wire-format schemas for quest engagement — substrate-graded step submission + verdict (instance-1 · cycle 2026-05-03). Future shapes: quest defs, completion criteria, badges, raffles, completion events.",
   "license": "MIT",
   "type": "module",
@@ -23,6 +23,25 @@
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0xHoneyJar/freeside-quests.git",
+    "directory": "packages/protocol"
+  },
+  "homepage": "https://github.com/0xHoneyJar/freeside-quests/tree/master/packages/protocol#readme",
+  "bugs": {
+    "url": "https://github.com/0xHoneyJar/freeside-quests/issues"
+  },
+  "keywords": [
+    "freeside",
+    "quests",
+    "protocol",
+    "schema",
+    "effect"
+  ],
   "peerDependencies": {
     "effect": "^3.10.0"
   },

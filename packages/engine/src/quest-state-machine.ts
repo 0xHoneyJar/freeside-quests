@@ -18,7 +18,7 @@ import {
   type QuestVerdict,
   type SubmissionEnvelope,
   InvalidPhaseTransitionError,
-} from "@freeside-quests/protocol";
+} from "@0xhoneyjar/quests-protocol";
 
 // ---------------------------------------------------------------------------
 // Helpers — clock injection

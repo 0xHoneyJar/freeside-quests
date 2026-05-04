@@ -3,11 +3,11 @@
  *
  * IMPORTANT: These are SCAFFOLD-ONLY interfaces for Sprint 1. Sprint 2 (P2
  * ENGINE+PERSIST) lands the canonical sealed Effect Schemas in
- * `@freeside-quests/protocol`. When that lands, this file is DELETED and the
+ * `@0xhoneyjar/quests-protocol`. When that lands, this file is DELETED and the
  * imports below switch to:
  *
  *   import type { Quest, QuestState, QuestPhase, QuestVerdict, BadgeArtifact, BadgeSpec }
- *     from "@freeside-quests/protocol";
+ *     from "@0xhoneyjar/quests-protocol";
  *
  * The local shapes here are intentionally LOOSE (string aliases) so Sprint 1
  * compiles standalone without contradicting the Sprint 2 sealed schemas. The

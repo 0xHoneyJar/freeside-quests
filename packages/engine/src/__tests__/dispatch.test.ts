@@ -25,7 +25,7 @@ import type {
   EssayGraderOutput,
   ResolutionHandlers,
 } from "../dispatch.js";
-import type { SubstrateStepSubmission, SubstrateStepVerdict } from "@freeside-quests/protocol";
+import type { SubstrateStepSubmission, SubstrateStepVerdict } from "@0xhoneyjar/quests-protocol";
 
 // ---------------------------------------------------------------------------
 // Test fixtures

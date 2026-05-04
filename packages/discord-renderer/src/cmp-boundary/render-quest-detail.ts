@@ -15,7 +15,7 @@ import type {
   APIMessageActionRowComponent,
 } from "discord-api-types/v10";
 import { ButtonStyle, ComponentType } from "discord-api-types/v10";
-import type { Quest } from "@freeside-quests/protocol";
+import type { Quest } from "@0xhoneyjar/quests-protocol";
 import {
   filterTelemetryFromOutput,
   npcIdToDisplayName,

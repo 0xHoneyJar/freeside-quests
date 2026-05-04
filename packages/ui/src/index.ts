@@ -1,5 +1,5 @@
 /**
- * @freeside-quests/ui — unstyled React primitives for quest UIs.
+ * @0xhoneyjar/quests-ui — unstyled React primitives for quest UIs.
  *
  * Per Cycle Q SDD §6 + PRD D2:
  *   - 5 slot-based primitives

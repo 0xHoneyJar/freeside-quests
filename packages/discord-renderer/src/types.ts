@@ -27,7 +27,7 @@ export {
 
 /**
  * Public EngineConfig type alias — re-exported from
- * `@freeside-quests/engine` so consumers compose against the canonical
+ * `@0xhoneyjar/quests-engine` so consumers compose against the canonical
  * shape (Sprint 2 ENGINE+PERSIST landed the source-of-truth Schema).
  *
  * Sprint 1's EngineConfigStub is preserved as a deprecated alias for

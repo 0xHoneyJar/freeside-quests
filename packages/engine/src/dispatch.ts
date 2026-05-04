@@ -35,7 +35,7 @@ import {
   SUBSTRATE_STEP_CONTRACT_VERSION,
   SubstrateStepSubmission,
   SubstrateStepVerdict,
-} from "@freeside-quests/protocol";
+} from "@0xhoneyjar/quests-protocol";
 
 // ---------------------------------------------------------------------------
 // Open grader contract — the substrate-construct's input/output shape

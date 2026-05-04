@@ -24,7 +24,7 @@
  */
 
 import { Context, Effect, Layer } from "effect";
-import { type PlayerIdentity } from "@freeside-quests/protocol";
+import { type PlayerIdentity } from "@0xhoneyjar/quests-protocol";
 
 // ---------------------------------------------------------------------------
 // Cross-pack Tag identity contract — load-bearing constant

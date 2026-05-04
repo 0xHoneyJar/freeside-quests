@@ -1,5 +1,5 @@
 /**
- * @freeside-quests/discord-renderer — Discord interaction descriptor emitter.
+ * @0xhoneyjar/quests-discord-renderer — Discord interaction descriptor emitter.
  *
  * Per Cycle Q SDD §5 + PRD D1:
  *   - Dispatches slash · button · modal · embed · thread descriptors
@@ -21,8 +21,8 @@ import type {
   APIChatInputApplicationCommandInteraction,
 } from "discord-api-types/v10";
 import { ApplicationCommandType } from "discord-api-types/v10";
-import { QuestStatePort } from "@freeside-quests/engine";
-import type { PlayerIdentity } from "@freeside-quests/protocol";
+import { QuestStatePort } from "@0xhoneyjar/quests-engine";
+import type { PlayerIdentity } from "@0xhoneyjar/quests-protocol";
 import { handleButton } from "./button-handler.js";
 import { handleModalSubmit } from "./modal-handler.js";
 import {

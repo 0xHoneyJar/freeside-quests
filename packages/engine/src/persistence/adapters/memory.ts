@@ -16,7 +16,7 @@ import {
   type QuestId,
   type PlayerIdentity,
   QuestNotFoundError,
-} from "@freeside-quests/protocol";
+} from "@0xhoneyjar/quests-protocol";
 
 import { QuestStatePort } from "../port.js";
 

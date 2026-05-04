@@ -12,7 +12,7 @@
  */
 
 import type { APIEmbed } from "discord-api-types/v10";
-import type { QuestState, QuestVerdict } from "@freeside-quests/protocol";
+import type { QuestState, QuestVerdict } from "@0xhoneyjar/quests-protocol";
 import {
   filterTelemetryFromOutput,
   phaseToNarrative,

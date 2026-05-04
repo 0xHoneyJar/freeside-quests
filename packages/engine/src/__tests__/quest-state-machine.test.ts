@@ -28,7 +28,7 @@ import {
   NpcId,
   PlayerWallet,
   DiscordId,
-} from "@freeside-quests/protocol";
+} from "@0xhoneyjar/quests-protocol";
 
 /**
  * Run an Effect that may fail with a tagged error and assert the failure

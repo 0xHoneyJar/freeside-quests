@@ -42,7 +42,7 @@ import {
   QuestNotFoundError,
   PersistenceError,
   StateDecodeError,
-} from "@freeside-quests/protocol";
+} from "@0xhoneyjar/quests-protocol";
 
 import { QuestStatePort } from "../port.js";
 import { composeKey } from "./memory.js";
@@ -111,7 +111,7 @@ interface QuestStateRow extends QueryResultRow {
  *
  * @example
  *   import { Pool } from "pg";
- *   import { QuestStatePortPostgresLayer } from "@freeside-quests/engine";
+ *   import { QuestStatePortPostgresLayer } from "@0xhoneyjar/quests-engine";
  *
  *   const pool = new Pool({ connectionString: process.env.MIBERA_DB_URL });
  *   const layer = QuestStatePortPostgresLayer({

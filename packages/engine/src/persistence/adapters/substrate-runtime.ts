@@ -18,7 +18,7 @@
  */
 
 import { Effect, Layer } from "effect";
-import { NotImplementedError } from "@freeside-quests/protocol";
+import { NotImplementedError } from "@0xhoneyjar/quests-protocol";
 
 import { QuestStatePort } from "../port.js";
 
