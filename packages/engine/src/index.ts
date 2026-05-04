@@ -13,11 +13,11 @@
  *       · QuestStatePortPostgresLayer · production default (per-world DBs)
  *       · QuestStatePortSubstrateRuntimeLayer · post-#157 stub
  *
- * Sprint-4 will land:
+ * Sprint-4 (2026-05-04 · this surface) lands:
  *   - AuthCheckPort (anon-allowed default · sietch-stub Layer placeholder)
  *   - BadgeIssuancePort (null-badge default · asset-pipeline-stub Layer)
- *   - EngineConfig (3-mode questAcceptanceMode enum · per-world Slug)
- *   - End-to-end stub-quest integration test
+ *   - EngineConfig (3-mode questAcceptanceMode enum · per-world slug)
+ *   - End-to-end stub-quest integration test composing all 3 default ports
  */
 
 // ---------------------------------------------------------------------------
@@ -67,3 +67,32 @@ export {
   type QueryResultRow,
 } from "./persistence/adapters/postgres.js";
 export { QuestStatePortSubstrateRuntimeLayer } from "./persistence/adapters/substrate-runtime.js";
+
+// ---------------------------------------------------------------------------
+// Cycle-Q · sprint-4 SEAMS — Auth + Badge ports + EngineConfig (§4.3 · §4.4 · §4.5)
+// ---------------------------------------------------------------------------
+
+// AuthCheckPort (§4.3) — gates badge issuance per PRD D4
+export {
+  AuthCheckPort,
+  AuthCheckPortAnonLayer,
+  AUTH_CHECK_PORT_TAG_IDENTITY,
+  type AuthCheck,
+} from "./auth/index.js";
+export { AuthCheckPortSietchStubLayer } from "./auth/sietch-stub.js";
+
+// BadgeIssuancePort (§4.4) — produces BadgeArtifact for APPROVED verdicts
+export {
+  BadgeIssuancePort,
+  BadgeIssuancePortNullLayer,
+  BADGE_ISSUANCE_PORT_TAG_IDENTITY,
+} from "./badge/index.js";
+export { BadgeIssuancePortAssetPipelineStubLayer } from "./badge/asset-pipeline-stub.js";
+
+// EngineConfig (§4.5) — per-world quest engine configuration
+export {
+  EngineConfig,
+  QuestAcceptanceMode,
+  SubmissionStyle,
+  defaultEngineConfig,
+} from "./config.js";
