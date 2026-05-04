@@ -57,4 +57,20 @@ describe("QuestStatePort cross-pack identity", () => {
     );
     expect(externalTag.key).toBe(QuestStatePort.key);
   });
+
+  it("a Context.Tag-class-form declaration with the same string also resolves as the same Tag (per bridgebuilder iter-1 F-low-2)", () => {
+    // Bridgebuilder iter-1 LOW finding: defend against shape-drift across
+    // declaration forms. Effect supports both `Context.GenericTag(...)` and
+    // the `class FooTag extends Context.Tag(...)<FooTag, FooShape>()` form
+    // (the latter is what loa-finn#157 sprint-3 ModelRunner uses).
+    //
+    // The cross-pack identity contract is the STRING — regardless of which
+    // declaration form a future package picks. This test simulates the
+    // class-form path and asserts identity equality.
+    class ExternalQuestStatePortTag extends Context.Tag(
+      "@freeside-quests/QuestStatePort",
+    )<ExternalQuestStatePortTag, QuestStatePort>() {}
+    expect(ExternalQuestStatePortTag.key).toBe(QuestStatePort.key);
+    expect(ExternalQuestStatePortTag.key).toBe(QUEST_STATE_PORT_TAG_IDENTITY);
+  });
 });
