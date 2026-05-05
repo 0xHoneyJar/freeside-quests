@@ -8,11 +8,19 @@
  *   - Does NOT call the Discord API (the consumer bot owns dispatch)
  *
  * Sprint 1 SCAFFOLD landed the 5 dispatch signatures with placeholder
- * descriptors. Sprint 3 BOT WIRING (this commit) lands:
- *   - CMP-boundary transforms (cmp-boundary/transforms.ts · 7 transforms)
- *   - Full state-machine wiring via QuestStatePort
- *   - render-quest-list / render-quest-detail / render-verdict / render-badge-reveal
- *   - cmp-boundary.test.ts regression suite
+ * descriptors. Sprint 3 BOT WIRING landed the full state-machine.
+ *
+ * Cycle R Sprint 3 (this commit) adds @0xhoneyjar/medium-registry
+ * consumption — DISCORD_INTERACTION_DESCRIPTOR is the typed source-of-truth
+ * for the interactive surface this package emits.
+ *
+ * The architectural rationale (SKP-001 fix in v0.2.0):
+ *   discord-renderer ALWAYS operates in interaction context — slash
+ *   commands, button presses, modal submits all carry interaction tokens.
+ *   Modal + ephemeral capabilities are interaction-only; using
+ *   DISCORD_INTERACTION_DESCRIPTOR makes that contract explicit.
+ *   Persona-bots delivering via webhook (ruggy/satoshi/munkh in
+ *   freeside-characters) use DISCORD_WEBHOOK_DESCRIPTOR — distinct.
  */
 
 import { Effect } from "effect";
@@ -23,6 +31,11 @@ import type {
 import { ApplicationCommandType } from "discord-api-types/v10";
 import { QuestStatePort } from "@0xhoneyjar/quests-engine";
 import type { PlayerIdentity } from "@0xhoneyjar/quests-protocol";
+import {
+  DISCORD_INTERACTION_DESCRIPTOR,
+  hasCapability,
+  type MediumCapability,
+} from "@0xhoneyjar/medium-registry";
 import { handleButton } from "./button-handler.js";
 import { handleModalSubmit } from "./modal-handler.js";
 import {
@@ -48,6 +61,50 @@ const isChatInputCommand = (
   interaction: APIApplicationCommandInteraction,
 ): interaction is APIChatInputApplicationCommandInteraction =>
   interaction.data.type === ApplicationCommandType.ChatInput;
+
+/**
+ * The medium descriptor this renderer operates against.
+ *
+ * Per cycle R Sprint 3: discord-renderer always operates in interaction
+ * context (slash + button + modal flows). This export lets bot consumers
+ * inspect the capability shape and lets cross-repo audit tests verify
+ * that every capability key the renderer consumes exists.
+ *
+ * Use `medium` in `hasCapability(medium, KEY)` calls when conditional
+ * capability branches are added. Today the renderer hardcodes the
+ * interaction-context capabilities (modal, ephemeral, slash); the medium
+ * is exposed for future extension + audit.
+ */
+export const medium: MediumCapability = DISCORD_INTERACTION_DESCRIPTOR;
+
+/**
+ * Capability assertion — verifies the registry shape matches what this
+ * package relies on. Catches a registry version mismatch at module-load
+ * time rather than at first interaction.
+ *
+ * If this throws, the operator has installed an incompatible
+ * medium-registry version. Pin `^0.2.0`.
+ */
+const REQUIRED_CAPABILITIES = [
+  "text",
+  "embed",
+  "attachment",
+  "customEmoji",
+  "sticker",
+  "slashCommand",
+  "modal",
+  "button",
+  "ephemeral",
+  "mention",
+  "thread",
+] as const;
+for (const cap of REQUIRED_CAPABILITIES) {
+  if (!hasCapability(medium, cap)) {
+    throw new Error(
+      `discord-renderer requires DISCORD_INTERACTION_DESCRIPTOR.${cap}=true · check @0xhoneyjar/medium-registry version`,
+    );
+  }
+}
 
 /**
  * Per-dispatch context the bot consumer constructs before invoking
@@ -186,3 +243,19 @@ export type {
   APIInteractionResponse,
   EngineConfigStub,
 } from "./types.js";
+
+// ---------------------------------------------------------------------------
+// medium-registry re-exports (cycle R sprint 3)
+// ---------------------------------------------------------------------------
+
+/**
+ * Cycle R Sprint 3 — re-export the interaction descriptor + accessor for
+ * downstream consumers that want to inspect capabilities without adding
+ * @0xhoneyjar/medium-registry as a direct dep.
+ *
+ * Use:
+ *   import { medium, hasCapability } from '@0xhoneyjar/quests-discord-renderer';
+ *   if (hasCapability(medium, 'modal')) { ... }
+ */
+export { hasCapability, type MediumCapability } from "@0xhoneyjar/medium-registry";
+export { DISCORD_INTERACTION_DESCRIPTOR } from "@0xhoneyjar/medium-registry";

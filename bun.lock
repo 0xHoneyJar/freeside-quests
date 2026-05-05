@@ -15,10 +15,11 @@
     },
     "packages/discord-renderer": {
       "name": "@0xhoneyjar/quests-discord-renderer",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "dependencies": {
-        "@0xhoneyjar/quests-engine": "workspace:*",
-        "@0xhoneyjar/quests-protocol": "workspace:*",
+        "@0xhoneyjar/medium-registry": "^0.2.0",
+        "@0xhoneyjar/quests-engine": "^0.1.2",
+        "@0xhoneyjar/quests-protocol": "^0.1.2",
       },
       "devDependencies": {
         "discord-api-types": "^0.37.100",
@@ -33,9 +34,9 @@
     },
     "packages/engine": {
       "name": "@0xhoneyjar/quests-engine",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "dependencies": {
-        "@0xhoneyjar/quests-protocol": "workspace:*",
+        "@0xhoneyjar/quests-protocol": "^0.1.2",
       },
       "devDependencies": {
         "@types/pg": "^8.11.0",
@@ -62,7 +63,7 @@
     },
     "packages/protocol": {
       "name": "@0xhoneyjar/quests-protocol",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "devDependencies": {
         "effect": "^3.10.0",
         "typescript": "^5.7.0",
@@ -73,7 +74,7 @@
     },
     "packages/ui": {
       "name": "@0xhoneyjar/quests-ui",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "dependencies": {
         "@0xhoneyjar/quests-protocol": "workspace:*",
       },
@@ -93,6 +94,8 @@
     },
   },
   "packages": {
+    "@0xhoneyjar/medium-registry": ["@0xhoneyjar/medium-registry@0.2.0", "", { "peerDependencies": { "effect": "^3.10.0" } }, "sha512-A7Kpd8UjfymCzQ6Gdod8ZcGn2LvWmgaksYhiY8M3RpUWAziJ/0VSc0SBG7PLt5dCwtWdf0xiOLG3TPJ5qitIqw=="],
+
     "@0xhoneyjar/quests-discord-renderer": ["@0xhoneyjar/quests-discord-renderer@workspace:packages/discord-renderer"],
 
     "@0xhoneyjar/quests-engine": ["@0xhoneyjar/quests-engine@workspace:packages/engine"],
