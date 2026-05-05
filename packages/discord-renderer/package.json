@@ -44,6 +44,7 @@
     "interaction-response"
   ],
   "dependencies": {
+    "@0xhoneyjar/medium-registry": "^0.2.0",
     "@0xhoneyjar/quests-protocol": "^0.1.2",
     "@0xhoneyjar/quests-engine": "^0.1.2"
   },
