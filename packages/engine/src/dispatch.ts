@@ -47,6 +47,11 @@ import {
  * `LoreEssayInput` but is duplicated here so freeside-quests doesn't
  * directly depend on a specific grader package — different worlds plug
  * in different graders that conform to this shape.
+ *
+ * cycle-B sprint-1 B-1.11 (additive): `tenantId` is plumbed through to the
+ * grader so per-tenant logic (per-tenant routing in loa-finn ModelRunner ·
+ * per-tenant audit log · per-tenant rate-limit) can dispatch off this hint.
+ * Optional · pre-cycle-B graders ignore it and continue working unchanged.
  */
 export interface EssayGraderInput {
   essay: string;
@@ -57,6 +62,13 @@ export interface EssayGraderInput {
   };
   submissionId: string;
   traceId: string;
+  /**
+   * Tenant identifier sourced from the JWT claim that authorized this
+   * submission. `undefined` for pre-cycle-B anon-only paths · populated
+   * by the bot's auth-bridge once AUTH_BACKEND=freeside-jwt activates.
+   * Per cycle-B sprint-1 §3.4 + AC-B1.11.
+   */
+  tenantId?: string;
 }
 
 /**
@@ -136,9 +148,46 @@ export const dispatchEssayQuest = <E, R>(params: {
   ) => Effect.Effect<EssayGraderOutput, E, R>;
   /** Slug of the grader construct (for verdict.graderConstructSlug). */
   graderConstructSlug: string;
+  /**
+   * cycle-B sprint-1 B-1.11: tenant identifier for per-tenant routing.
+   * Sourced by the caller from the JWT claim that authorized this
+   * submission (e.g., `claims.tenant` post-verify). Plumbed to the grader
+   * input so per-tenant constructs can dispatch off it.
+   *
+   * Optional for backwards compatibility · pre-cycle-B paths omit it.
+   */
+  tenantId?: string;
+  /**
+   * cycle-B sprint-1 AC-B1.11.1: when both `tenantId` and `expectedTenant`
+   * are provided, the dispatcher asserts they match BEFORE invoking the
+   * grader. Mismatch fails-fast with `DispatchError("tenant_assertion_failed")`
+   * — the bot's outer handler surfaces an operator-readable error.
+   *
+   * The assertion mirrors `assertTenantBoundary` from `@freeside-auth/protocol` ·
+   * we don't import that package directly to keep freeside-quests independent
+   * (per [[freeside-modules-as-installables]]). Callers wire the assertion
+   * by passing both the JWT-claim tenant AND the world's expected tenant ·
+   * mismatch surfaces here regardless of route fail-mode.
+   *
+   * I6 invariant: a valid JWT for tenant X must NEVER authorize an action
+   * for tenant Y, regardless of any other claim's state.
+   */
+  expectedTenant?: string;
 }): Effect.Effect<SubstrateStepVerdict, DispatchError | E, R> =>
   Effect.gen(function* () {
-    const { submission, rubric, grader, graderConstructSlug } = params;
+    const { submission, rubric, grader, graderConstructSlug, tenantId, expectedTenant } = params;
+
+    // ── AC-B1.11.1 · pre-invocation tenant-boundary assertion ─────────
+    // Both fields populated · they MUST match before the grader runs.
+    // Failed assertion surfaces as DispatchError(tenant_assertion_failed)
+    // for the bot's caller to map to operator-readable error.
+    if (tenantId && expectedTenant && tenantId !== expectedTenant) {
+      return yield* Effect.fail(
+        new DispatchError(
+          `tenant_assertion_failed: jwt-claim tenant=${tenantId} does not match world expected_tenant=${expectedTenant}`,
+        ),
+      );
+    }
 
     // 1. Re-validate the submission. The gateway validated already, but
     //    defense-in-depth: the dispatcher does NOT trust the call shape.
@@ -164,6 +213,7 @@ export const dispatchEssayQuest = <E, R>(params: {
       rubric,
       submissionId: validated.submissionId,
       traceId: validated.traceId,
+      tenantId,
     };
 
     // 3. Invoke the grader. Failure modes propagate through Effect's
@@ -275,6 +325,10 @@ export const dispatchAndResolve = <DispatchE, DispatchR, ResolveE, ResolveR>(par
   ) => Effect.Effect<EssayGraderOutput, DispatchE, DispatchR>;
   graderConstructSlug: string;
   handlers: ResolutionHandlers<ResolveR, ResolveE>;
+  /** cycle-B sprint-1 B-1.11: tenant identifier for per-tenant routing. */
+  tenantId?: string;
+  /** cycle-B sprint-1 AC-B1.11.1: pre-invocation tenant-boundary assertion. */
+  expectedTenant?: string;
 }): Effect.Effect<
   SubstrateStepVerdict,
   DispatchError | DispatchE | ResolveE,
@@ -286,6 +340,8 @@ export const dispatchAndResolve = <DispatchE, DispatchR, ResolveE, ResolveR>(par
       rubric: params.rubric,
       grader: params.grader,
       graderConstructSlug: params.graderConstructSlug,
+      tenantId: params.tenantId,
+      expectedTenant: params.expectedTenant,
     });
 
     yield* resolveVerdict({ verdict, handlers: params.handlers });
