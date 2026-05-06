@@ -122,6 +122,56 @@ export class TenantAssertionError extends Error {
   }
 }
 
+/**
+ * Raised when the JWT verifier promise rejects (DNS · network · JWKS 5xx ·
+ * programmer error · etc) rather than returning a diagnosed `{ ok: false }`.
+ *
+ * Distinct from VerifyError (recoverable · diagnosed) · this is undiagnosed
+ * infrastructure failure. The Sietch Layer surfaces it as Effect defect so
+ * the dispatcher's outer error handler treats it as 5xx-equivalent (NOT as
+ * a recoverable downgrade · per SDD §13 fail-closed posture).
+ *
+ * Cross-reviewer flatline finding (PR #13 · CRITICAL 810): conflating
+ * verifier-thrown infra errors with diagnosed verify failures would silently
+ * downgrade users to anon during outages · violates fail-closed.
+ */
+export class SietchInfrastructureError extends Error {
+  constructor(
+    message: string,
+    public readonly cause_value: unknown,
+  ) {
+    super(message);
+    this.name = "SietchInfrastructureError";
+  }
+}
+
+/**
+ * Redact an error reason · prevents token-derived data leakage in error logs.
+ *
+ * Bridgebuilder F4 (PR #13 · LOW 0.4): `(cause as Error).message` could embed
+ * token bytes if the verifier surfaces them in its error message. Strip any
+ * substring that LOOKS like a JWT (3 base64-ish segments separated by dots)
+ * and anything > 60 chars after the first colon (likely token payload).
+ *
+ * The error CODE (e.g., 'verifier threw on jwks/network path') stays · only
+ * the variable cause-detail is redacted. Operator gets enough signal for
+ * triage without leaking secrets to logs/telemetry.
+ */
+const redactReason = (cause: unknown): string => {
+  const raw =
+    cause instanceof Error
+      ? (cause.message ?? String(cause))
+      : String(cause);
+  // Remove anything that looks like a JWT (xxx.yyy.zzz · base64-ish segments).
+  // Threshold 10+ chars/segment catches most real JWTs (header is typically
+  // ~30 chars, signature ~40+) and the smallest realistic token shapes.
+  // False-positive risk: very long version strings or hashes — acceptable
+  // tradeoff for fail-safe redaction in error messages.
+  return raw
+    .replace(/[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g, "[redacted-jwt]")
+    .slice(0, 200);
+};
+
 // ---------------------------------------------------------------------------
 // Layer constructor
 // ---------------------------------------------------------------------------
@@ -159,22 +209,41 @@ export const buildAuthCheckPortSietchLayer = (
     AuthCheckPort.of({
       check: () =>
         Effect.gen(function* () {
+          // Verifier port boundary · two distinct failure modes:
+          //   (a) verifier returns `{ ok: false, error }` — KNOWN recoverable
+          //       JWT failure (malformed / expired / unknown_kid). The verifier
+          //       diagnosed it · we trust the code · downgrade to anon-fallback
+          //       per AC-B1.9.1 + dispatcher fail-mode.
+          //   (b) verifier promise rejects (network / DNS / 5xx / programmer
+          //       error) — UNDIAGNOSED infrastructure failure. Treating these
+          //       as recoverable would silently downgrade real users to anon
+          //       during outages · violates fail-closed posture per SDD §13.
+          //       Surface as Effect defect so the dispatcher's outer error
+          //       handler treats them as 5xx-equivalent.
+          //
+          // Cross-reviewer flatline finding (PR #13) flagged this distinction
+          // explicitly · CRITICAL 810 if conflated.
           const result = yield* Effect.tryPromise({
             try: () => verifier.verifyJwt(input.jwt),
-            catch: (cause): VerifyError => ({
-              code: "unknown_kid_refresh_failed",
-              reason: `verifier threw: ${(cause as Error)?.message ?? String(cause)}`,
-            }),
+            catch: (cause) =>
+              new SietchInfrastructureError(
+                `verifier threw on jwks/network path: ${redactReason(cause)}`,
+                cause,
+              ),
           }).pipe(
-            Effect.catchAll((verifyError) =>
-              // verifier promise rejected · treat as recoverable per AC-B1.9.1
-              Effect.succeed<VerifyResult>({ ok: false, error: verifyError }),
-            ),
+            // Convert typed infrastructure error to Effect defect · widens to
+            // `never` in the typed error channel while halting via die. This
+            // preserves the AuthCheckPort signature (Effect<AuthCheck, never>)
+            // AND gets the fail-closed semantics per AC-B1.9.1 + cross-reviewer
+            // CRITICAL 810 (PR #13).
+            Effect.catchAll((err) => Effect.die(err)),
           );
 
           if (!result.ok) {
-            // Recoverable verify failure · downgrade to anon path · let
-            // dispatcher decide per fail-mode whether to 401 or audit-fallback
+            // Recoverable diagnosed verify failure · downgrade to anon path ·
+            // let dispatcher decide per fail-mode whether to 401 or audit-fallback.
+            // verify_error.reason is sourced from verifier (already redacted at
+            // its boundary) · we don't re-embed token bytes here.
             const ac: AuthCheck = {
               is_verified: false,
               verify_error: result.error,
@@ -182,7 +251,31 @@ export const buildAuthCheckPortSietchLayer = (
             return ac;
           }
 
-          // Audience check (recoverable · per AC-B1.9.1 wrong_audience)
+          // Tenant boundary assertion (I6 · catastrophic · cannot recover ·
+          // MUST come BEFORE audience check). Cross-reviewer flatline finding
+          // (PR #13 · CRITICAL 880): if audience check fired first, a token
+          // claiming tenant=X with aud=X presented to expected_tenant=Y would
+          // return recoverable `wrong_audience` instead of `Effect.die` —
+          // boundary breach gets downgraded to anon on fallback routes.
+          //
+          // I6 says: a valid JWT issued for tenant X must NEVER authorize an
+          // action for tenant Y, regardless of any other claim's state.
+          if (result.claims.tenant !== input.expected_tenant) {
+            return yield* Effect.die(
+              new TenantAssertionError(
+                result.claims.tenant,
+                input.expected_tenant,
+                result.claims.sub,
+              ),
+            );
+          }
+
+          // Audience check (recoverable · per AC-B1.9.1 wrong_audience).
+          // Reached only when tenant claim already matched expected_tenant ·
+          // means the token was issued for the right tenant but for a different
+          // audience profile (e.g., a misrouted ruggy JWT used for quest path).
+          // Recoverable downgrade is appropriate · the security boundary is
+          // already satisfied by the tenant assertion above.
           if (result.claims.aud !== input.expected_tenant) {
             const ac: AuthCheck = {
               is_verified: false,
@@ -192,17 +285,6 @@ export const buildAuthCheckPortSietchLayer = (
               },
             };
             return ac;
-          }
-
-          // Tenant boundary assertion (I6 · catastrophic · cannot recover)
-          if (result.claims.tenant !== input.expected_tenant) {
-            return yield* Effect.die(
-              new TenantAssertionError(
-                result.claims.tenant,
-                input.expected_tenant,
-                result.claims.sub,
-              ),
-            );
           }
 
           const ac: AuthCheck = {

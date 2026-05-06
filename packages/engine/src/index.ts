@@ -89,6 +89,7 @@ export { AuthCheckPortSietchStubLayer } from "./auth/sietch-stub.js";
 export {
   buildAuthCheckPortSietchLayer,
   TenantAssertionError,
+  SietchInfrastructureError,
   type JWTVerifierPort,
   type SietchLayerInput,
   type VerifyResult,

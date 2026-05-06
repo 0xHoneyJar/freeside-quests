@@ -17,11 +17,12 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { Context, Effect, Exit } from "effect";
+import { Effect, Exit } from "effect";
 import {
   AuthCheckPort,
   AUTH_CHECK_PORT_TAG_IDENTITY,
   buildAuthCheckPortSietchLayer,
+  SietchInfrastructureError,
   TenantAssertionError,
   type JWTVerifierPort,
   type VerifyResult,
@@ -187,11 +188,42 @@ describe("Sietch AuthCheck · recoverable verify failures (AC-B1.9.1)", () => {
     expect(result.verify_error?.code).toBe("unknown_kid_refresh_failed");
   });
 
-  it("verifier promise rejection → mapped to unknown_kid_refresh_failed", async () => {
-    const result = await runCheck(verifierThrows("network reset"));
-    expect(result.is_verified).toBe(false);
-    expect(result.verify_error?.code).toBe("unknown_kid_refresh_failed");
-    expect(result.verify_error?.reason).toContain("network reset");
+  it("verifier promise rejection → Effect.die SietchInfrastructureError (NOT recoverable downgrade)", async () => {
+    // Cross-reviewer flatline finding (PR #13 · CRITICAL 810): verifier-thrown
+    // infra errors must NOT silently downgrade to anon during outages. The
+    // Layer surfaces them as Effect defect so the dispatcher's outer error
+    // handler treats them as 5xx-equivalent.
+    const exit = await runCheckExit(verifierThrows("network reset"));
+    expect(Exit.isFailure(exit)).toBe(true);
+    if (Exit.isFailure(exit)) {
+      const causeStr = JSON.stringify(exit.cause, (_k, v) =>
+        v instanceof Error ? { name: v.name, message: v.message } : v,
+      );
+      expect(causeStr).toContain("SietchInfrastructureError");
+      expect(causeStr).toContain("network reset");
+    }
+  });
+
+  it("redacts JWT-shaped substrings from infrastructure-error messages (Bridgebuilder F4)", async () => {
+    // Token bytes shouldn't leak into error logs · the redactor strips
+    // anything that looks like xxx.yyy.zzz with base64-ish segments.
+    const verifierThrowsWithToken: JWTVerifierPort = {
+      verifyJwt: async () => {
+        throw new Error(
+          "validation rejected for eyJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJ0ZXN0In0.aBcDeFgHiJkLmNoPqRsTuVwXyZaBcDeFgHiJ at jwks-validator.ts",
+        );
+      },
+    };
+    const exit = await runCheckExit(verifierThrowsWithToken);
+    if (Exit.isFailure(exit)) {
+      const causeStr = JSON.stringify(exit.cause, (_k, v) =>
+        v instanceof Error ? { name: v.name, message: v.message } : v,
+      );
+      // The JWT-shaped substring should be replaced with [redacted-jwt]
+      expect(causeStr).toContain("[redacted-jwt]");
+      // The original token payload bytes should NOT appear in the message
+      expect(causeStr).not.toContain("eyJhbGciOiJFUzI1NiJ9");
+    }
   });
 });
 
@@ -257,6 +289,47 @@ describe("Sietch AuthCheck · I6 tenant assertion (Effect.die · cannot recover)
     expect(err.message).toContain("tenant_assertion_failed");
     expect(err.name).toBe("TenantAssertionError");
   });
+
+  it("regression · ordering: tenant=X aud=X expected=Y → Effect.die (NOT wrong_audience)", async () => {
+    // Cross-reviewer flatline finding (PR #13 · CRITICAL 880): if the audience
+    // check fired before the tenant assertion, this case would return
+    // recoverable `wrong_audience` and downgrade to anon on fallback routes —
+    // a security boundary breach. The fix moves tenant assertion BEFORE
+    // audience check · this test pins the correct ordering.
+    //
+    // Scenario: a valid mibera JWT (tenant=mibera, aud=mibera) is presented
+    // to a request expecting cubquest. Cross-tenant token MUST halt processing.
+    const verifier = verifierOk({
+      tenant: "mibera",
+      aud: "mibera",
+    });
+    const exit = await runCheckExit(verifier, "cubquest");
+    expect(Exit.isFailure(exit)).toBe(true);
+    if (Exit.isFailure(exit)) {
+      const causeStr = JSON.stringify(exit.cause, (_k, v) =>
+        v instanceof Error ? { name: v.name, message: v.message } : v,
+      );
+      expect(causeStr).toContain("TenantAssertionError");
+      expect(causeStr).toContain("tenant_assertion_failed");
+      expect(causeStr).toContain("mibera");
+      expect(causeStr).toContain("cubquest");
+      // Critical · the recoverable code MUST NOT appear in the cause
+      expect(causeStr).not.toContain("wrong_audience");
+    }
+  });
+
+  it("ordering: when tenant matches but aud differs, returns wrong_audience (positive control)", async () => {
+    // Mirror of the CRITICAL ordering test · proves audience check still
+    // engages once the tenant assertion has passed (recoverable downgrade
+    // for legitimate misroute · e.g., a ruggy JWT used for a quest path).
+    const verifier = verifierOk({
+      tenant: "mibera",
+      aud: "cubquest",
+    });
+    const result = await runCheck(verifier, "mibera");
+    expect(result.is_verified).toBe(false);
+    expect(result.verify_error?.code).toBe("wrong_audience");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -277,6 +350,5 @@ describe("Sietch AuthCheck · port satisfaction (Effect type compatibility)", ()
 
     const port = await Effect.runPromise(program);
     expect(typeof port.check).toBe("function");
-    void Context; // type import keeps eslint happy
   });
 });
