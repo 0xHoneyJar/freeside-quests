@@ -45,16 +45,56 @@ export const AUTH_CHECK_PORT_TAG_IDENTITY =
 // ---------------------------------------------------------------------------
 
 /**
+ * Verification error codes emitted by the Sietch Layer (cycle-B sprint-1
+ * B-1.9 · AC-B1.9.1). Recoverable JWT failures (malformed token, expired
+ * exp, unknown kid that couldn't be refreshed) populate the `verify_error`
+ * field on AuthCheck so the bot dispatcher can decide per fail-mode whether
+ * to 401 or downgrade-with-audit.
+ *
+ * Tenant assertion failures are NOT enumerated here — they cause an
+ * Effect defect (`Effect.die`) per the I6 invariant + SDD §11.4 + §13.2.
+ * Cannot be recovered · cannot fall back to anon · halt processing.
+ */
+export type VerifyErrorCode =
+  | "malformed"
+  | "expired"
+  | "wrong_audience"
+  | "unknown_kid_refresh_failed";
+
+export interface VerifyError {
+  readonly code: VerifyErrorCode;
+  readonly reason: string;
+}
+
+/**
  * Result of an auth check. `is_verified` gates badge issuance per D4.
  * `display_handle` is the resolved canonical handle (used by the renderer
  * Transform 3 wallet→@handle); the default anon adapter leaves it
- * `undefined` and Session A populates it.
+ * `undefined` and the Sietch adapter populates it.
+ *
+ * cycle-B sprint-1 B-1.9 · additive: `verify_error` is populated by the
+ * Sietch Layer for recoverable JWT verification failures (malformed /
+ * expired / wrong audience / unknown kid). Anon Layer never sets it. The
+ * bot dispatcher inspects this field per fail-mode classification:
+ *
+ *   - `verified-required` route + verify_error present → 401 + structured error
+ *   - `verified-with-anon-fallback` route + verify_error → audit log + anon
+ *   - `public` route → not consulted at all
+ *
+ * Catastrophic verification failures (tenant assertion mismatch · I6) are
+ * NOT surfaced via verify_error — they cause Effect defects and halt the
+ * pipeline upstream of any consumer that could check this field.
  */
 export interface AuthCheck {
   /** True iff the player is wallet-verified via Sietch /verify. */
   readonly is_verified: boolean;
   /** Resolved canonical handle (for renderer display) — undefined if anon. */
   readonly display_handle?: string;
+  /**
+   * Recoverable verify failure detail · populated by Sietch Layer only.
+   * Anon Layer never sets this field. cycle-B sprint-1 B-1.9 · AC-B1.9.1.
+   */
+  readonly verify_error?: VerifyError;
 }
 
 // ---------------------------------------------------------------------------

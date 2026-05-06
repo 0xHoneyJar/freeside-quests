@@ -78,8 +78,22 @@ export {
   AuthCheckPortAnonLayer,
   AUTH_CHECK_PORT_TAG_IDENTITY,
   type AuthCheck,
+  type VerifyError,
+  type VerifyErrorCode,
 } from "./auth/index.js";
 export { AuthCheckPortSietchStubLayer } from "./auth/sietch-stub.js";
+
+// AuthCheckPort Sietch (cycle-B sprint-1 B-1.9) — verified-path adapter
+// flips the stub Layer to a real JWT-verifying Layer. Per-interaction
+// composition · honors A2 Tag identity · I6 tenant assertion enforced.
+export {
+  buildAuthCheckPortSietchLayer,
+  TenantAssertionError,
+  SietchInfrastructureError,
+  type JWTVerifierPort,
+  type SietchLayerInput,
+  type VerifyResult,
+} from "./auth/sietch.js";
 
 // BadgeIssuancePort (§4.4) — produces BadgeArtifact for APPROVED verdicts
 export {
