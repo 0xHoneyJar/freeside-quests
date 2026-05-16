@@ -42,7 +42,7 @@ This simstim is for **freeside-activities ONLY**. The sibling freeside-mint modu
 
 ---
 
-## 2 · S1 · protocol + ports + canonical preimage
+## Sprint 1: protocol + ports + canonical preimage (S1)
 
 ### 2.1 · sprint goal
 
@@ -92,7 +92,7 @@ Land the sealed-schema substrate. After S1: an agent or world can import `@0xhon
 
 ---
 
-## 3 · S2 · adapters + MCP + engine
+## Sprint 2: adapters + MCP + engine (S2)
 
 ### 3.1 · sprint goal
 
@@ -134,7 +134,7 @@ Land the in-memory adapter family + MCP tool surface + engine composition. After
 
 ---
 
-## 4 · S3 · docs + conformance + publish-ready
+## Sprint 3: docs + conformance + publish-ready (S3)
 
 ### 4.1 · sprint goal
 
