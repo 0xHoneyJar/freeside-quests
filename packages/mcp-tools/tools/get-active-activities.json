@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.freeside.thj/mcp/get-active-activities/v1.0.0",
+  "title": "get-active-activities",
+  "description": "Returns the page of ACTIVE Activities visible to the caller's world_scope, ordered by lifecycle_state then id.",
+  "type": "object",
+  "properties": {
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "Optional filter by ActivityKind discriminant (e.g., quest, mission, badge-claim, raffle-entry, world-defined:*)."
+        },
+        "_pagination": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "cursor": { "type": ["string", "null"] },
+            "limit": { "type": "integer", "minimum": 1, "maximum": 200 }
+          }
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": ["items", "next_cursor", "total_count"],
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": { "$ref": "https://schemas.freeside.thj/activity/v1.0.0" }
+        },
+        "next_cursor": { "type": ["string", "null"] },
+        "total_count": { "type": ["integer", "null"] }
+      }
+    }
+  },
+  "required": ["input", "output"]
+}

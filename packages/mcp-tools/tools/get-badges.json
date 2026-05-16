@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.freeside.thj/mcp/get-badges/v1.0.0",
+  "title": "get-badges",
+  "description": "Returns the page of BadgeIssued events for an identity, optionally scoped to a family.",
+  "type": "object",
+  "properties": {
+    "input": {
+      "type": "object",
+      "required": ["identity_id"],
+      "additionalProperties": false,
+      "properties": {
+        "identity_id": {
+          "type": "string",
+          "pattern": "^id_[a-z0-9]{1,128}$"
+        },
+        "badge_family_id": {
+          "type": ["string", "null"]
+        },
+        "_pagination": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "cursor": { "type": ["string", "null"] },
+            "limit": { "type": "integer", "minimum": 1, "maximum": 200 }
+          }
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": ["items", "next_cursor", "total_count"],
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": { "$ref": "https://schemas.freeside.thj/badge-issued/v1.0.0" }
+        },
+        "next_cursor": { "type": ["string", "null"] },
+        "total_count": { "type": ["integer", "null"] }
+      }
+    }
+  },
+  "required": ["input", "output"]
+}

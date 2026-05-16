@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.freeside.thj/mcp/get-progress/v1.0.0",
+  "title": "get-progress",
+  "description": "Returns the ProgressRecord for one (activity_id, identity_id) pair. Errors with ActivityNotFound / IdentityNotFound / AdapterUnavailable.",
+  "type": "object",
+  "properties": {
+    "input": {
+      "type": "object",
+      "required": ["activity_id", "identity_id"],
+      "additionalProperties": false,
+      "properties": {
+        "activity_id": {
+          "type": "string",
+          "pattern": "^act_[a-z0-9]{1,128}$"
+        },
+        "identity_id": {
+          "type": "string",
+          "pattern": "^id_[a-z0-9]{1,128}$"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "description": "ProgressRecord — see protocol package for full Schema.Struct shape."
+    }
+  },
+  "required": ["input", "output"]
+}

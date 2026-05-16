@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.freeside.thj/mcp/list-kinds/v1.0.0",
+  "title": "list-kinds",
+  "description": "Lists ActivityKind discriminants registered in the substrate. Includes both built-in kinds and world-defined extensions matching the configured WorldId scope.",
+  "type": "object",
+  "properties": {
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "include_world_defined": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true, output includes world-defined kinds the caller is authorized for."
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": ["builtin_kinds", "world_defined_kinds"],
+      "additionalProperties": false,
+      "properties": {
+        "builtin_kinds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["quest", "mission", "badge-claim", "raffle-entry"]
+          }
+        },
+        "world_defined_kinds": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind_id", "world_sub_schema_id"],
+            "properties": {
+              "kind_id": { "type": "string" },
+              "world_sub_schema_id": { "type": "string", "format": "uri" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": ["input", "output"]
+}
