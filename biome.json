@@ -15,6 +15,7 @@
       "packages/protocol/src/encoding/**/*.ts",
       "packages/protocol/src/golden-vectors/**/*.ts",
       "packages/protocol/src/ports/**/*.ts",
+      "packages/protocol/src/auth/**/*.ts",
       "packages/ports/src/**/*.ts",
       "packages/adapters/src/in-memory/**/*.ts",
       "packages/mcp-tools/src/**/*.ts",

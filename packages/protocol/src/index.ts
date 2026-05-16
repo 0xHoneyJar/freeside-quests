@@ -187,6 +187,29 @@ export type {
   RewardPort,
 } from "./ports/index.js";
 
+// Auth + pagination (T1.16 + T1.17 + T1.18 + T1.19 · Fix-A3/A4 + D22/D26)
+export {
+  AuditPermission,
+  Cursor,
+  CursorError,
+  CursorPayload,
+  ExpiredCursor,
+  InvalidCursor,
+  MCPBearerToken,
+  MCPToolPermission,
+  paginatedResponse,
+  TOKEN_KEY_DISCOVERY_ENDPOINT,
+  TOKEN_REPLAY_WINDOW_SECONDS,
+  TOKEN_SKEW_TOLERANCE_SECONDS,
+  WORLD_PAYLOAD_MAX_BYTES,
+  WORLD_PAYLOAD_MAX_DEPTH,
+  WorldDefinedPayload,
+  WorldScope,
+  WorldScopeAudit,
+  WorldScopeMulti,
+  WorldScopeSingle,
+} from "./auth/index.js";
+
 // Event-stream schemas + EventError + computeEventId (T1.7 + T1.9 + T1.10 · FR-5 + Fix-A1/A2)
 export {
   ActivityCompleted,
