@@ -1,99 +1,343 @@
-# Integration Path — staged cutover with CubQuests
+# INTEGRATION-PATH — adopting `freeside-activities` in a world
 
-CubQuests today owns the quest engine + schemas inside `world-sprawl/cubquests/` + `world-sprawl/cubquests-dashboard/` (per `EXTRACTION-MAP.md` source paths). This doc describes the staged cutover so consumers don't break + the cubquests.com dashboard stays live.
+> Renamed from `freeside-quests` 2026-05-15. This is the staged-adoption guide for any
+> freeside world that wants to compose the activities substrate (purupuru · honey-port ·
+> mibera · future worlds). The sprint-2 substrate is production-ready for in-memory dev
+> paths; production adapters (postgres · convex · etc) are world-built.
 
-Per [[freeside-modules-as-installables]]: two stages, soft then hard.
+---
 
-## Stage 1 — Soft cutover (this scaffold)
+## tl;dr — the four-step adoption sequence
 
-**Goal**: this repo exists with the right shape; ready to receive extracted code.
+1. **Install** — declare `compose_with: @0xhoneyjar/quests-protocol` in your world-manifest + add the workspace deps
+2. **Implement ports** — supply your world's `IdentityResolverPort` · production `EventStoreContract` adapter · `KeyProviderPort` · `AuthReplayStore`
+3. **Register kinds** — declare which `ActivityKind` discriminants your world ships (built-ins + any `WorldDefined` kinds you author)
+4. **Run conformance** — your adapters MUST pass the canonical conformance suites at `packages/adapters/src/conformance/` before the world goes live
 
-**State**:
-- ✅ Repo scaffolded (you're reading this)
-- ✅ Package layout matches the eventual extraction targets
-- ✅ EXTRACTION-MAP names every source path
-- ✅ Doctrine landed at [[freeside-modules-as-installables]]
-- ✅ Cross-world consumer interest declared (Purupuru Year 2, Honey Port, Mibera plausibly)
-- ⏳ Code remains in `cubquests` + `cubquests-dashboard`; consumers continue to call the existing CubQuests REST API
+---
 
-**Why stage 1 first**: scaffolding the destination repo BEFORE extraction lets the operator + cubquests team align on shape. No code moves; no consumers break. The repo sits ready.
+## Step 1 — Install
 
-## Stage 2 — Hard cutover (per-package, when coordinated)
+### Workspace dependencies
 
-**Goal**: code physically extracts; cubquests-dashboard consumes via package import (or git URL fetch — pattern TBD per doctrine); other worlds (Purupuru, Honey Port) install the same package.
+Add to your world's `package.json`:
 
-### Per-package sequence
+```json
+{
+  "dependencies": {
+    "@0xhoneyjar/quests-protocol": "^0.1.2",
+    "@0xhoneyjar/freeside-activities-adapters": "workspace:*",
+    "@0xhoneyjar/freeside-activities-mcp-tools": "workspace:*",
+    "@0xhoneyjar/quests-engine": "^0.1.2"
+  },
+  "peerDependencies": {
+    "effect": "^3.12.0"
+  }
+}
+```
 
-For each row in `EXTRACTION-MAP.md`:
+### world-manifest.yaml
 
-1. **Coordinate window**: confirm CubQuests team has no in-flight work touching the package being extracted.
-2. **Move + tests**: copy the source code into `freeside-quests/packages/<target>/`. Bring tests. Run them in this repo until green.
-3. **Cross-repo import in cubquests-dashboard**: rewire cubquests-dashboard to import from `freeside-quests/packages/<target>/` (via npm package OR git path OR file fetch — depends on install pattern decided by then).
-4. **Delete cubquests-dashboard copy**: only after consumers verified. Keep a comment-stub pointing at `freeside-quests` for one cycle.
-5. **Verify**: cubquests.com still builds + deploys; quest publishing still works; ruggy MCP tools resolve; no tooling regression.
+```yaml
+# world-manifest.yaml in your freeside world
+world_id: world_yourworld
+schema_version: "1.0.0"
 
-### Order of extraction (lowest risk → highest)
+compose_with:
+  - module: "@0xhoneyjar/quests-protocol"
+    purpose: "Activity supertype schemas (sealed) + canonical preimage discipline"
 
-| order | package | risk | gate |
+  - module: "@0xhoneyjar/freeside-activities-mcp-tools"
+    purpose: "Read-only agent surface (5 MCP tools)"
+
+  - module: "@0xhoneyjar/quests-engine"
+    purpose: "Effect Layer composition + lifecycle state machine + reward retry"
+
+activity_kinds:
+  builtin:
+    - "quest"
+    - "mission"
+    - "badge-claim"
+    - "raffle-entry"
+  world_defined:
+    # Each world-defined kind needs a sub-schema $id pointing at YOUR schema host
+    # See VERSIONING.md for promotion-to-builtin SLA
+    # Example:
+    # - kind_id: "yourworld:custom-quest-shape"
+    #   world_sub_schema_id: "https://schemas.yourworld.example/custom-quest/v1.0.0"
+
+production_adapters:
+  event_store: "@yourworld/postgres-event-store"
+  reward_port: "@yourworld/postgres-reward-port"
+  progress_port: "@yourworld/postgres-progress-port"
+  identity_resolver: "@yourworld/privy-identity-resolver"
+
+mcp_auth:
+  key_provider: "@yourworld/jwks-key-provider"
+  replay_store: "@yourworld/redis-replay-store"
+  rate_limiter: "@yourworld/redis-rate-limiter"
+```
+
+### TypeScript composition root
+
+```typescript
+import { Effect, Layer } from "effect";
+import { buildDefaultActivitiesLayer } from "@0xhoneyjar/quests-engine";
+import {
+  ProgressPortTag,
+  IdentityResolverPortTag,
+  RewardPortTag,
+  CompletionEventPortTag,
+} from "@0xhoneyjar/quests-engine";
+
+// 1. Start with the substrate default (in-memory adapters)
+const { layer: defaults } = buildDefaultActivitiesLayer();
+
+// 2. Override individual ports with your production adapters
+const productionLayer = Layer.mergeAll(
+  defaults,
+  Layer.succeed(IdentityResolverPortTag, yourPrivyResolver),
+  Layer.succeed(CompletionEventPortTag, yourPostgresEventStore.port),
+  Layer.succeed(RewardPortTag, yourPostgresRewardPort.port),
+  Layer.succeed(ProgressPortTag, yourPostgresProgressPort.port),
+);
+
+// 3. All consumers (engine · MCP tools · your own routes) compose against this Layer
+```
+
+---
+
+## Step 2 — Implement ports
+
+### Required ports
+
+Every world MUST supply real implementations of these four ports — the in-memory adapters are TEST/DEV fixtures only (A5 + `IdentityResolverPort.ts` doc comment).
+
+| Port | Production implementation hints |
+|---|---|
+| `IdentityResolverPort` | Wrap your auth provider (Privy · Dynamic · Sietch) · the substrate is opaque about identity at the boundary |
+| `EventStoreContract` + `CompletionEventPort` | Postgres with append-only events table + per-partition tip index · or Convex with mutation-based atomic-append · MUST pass `runEventStoreConformanceSuite` |
+| `RewardPort` | Whatever issues your rewards (badge mint · token transfer · cosmetic grant) · D18 idempotency-by-(originating_event_id, recipient) tuple MUST be atomic at the storage layer |
+| `ProgressPort` | Per-(activity, identity) state with version-counter optimistic concurrency · `advanceProgress` rejects with `ConcurrentUpdate` on version mismatch |
+
+### MCP production seams (sprint-2 round-2 additions)
+
+| Port | Production implementation hints |
+|---|---|
+| `KeyProviderPort` | JWKS-backed resolver — fetch your issuer's `/.well-known/freeside-mcp-jwks` · cache with TTL · expose active/grace/revoked tri-state |
+| `AuthReplayStore` | Redis SETEX-shape — `SET jti 1 EX 3600 NX` atomic · returns `{ fresh: true }` on win |
+| `RateLimiter` | Redis token-bucket — `INCRBY caller:bucket 1` + `EXPIRE` |
+
+### Conformance: your adapters MUST pass the canonical suite
+
+```typescript
+// In your world's test suite
+import { runEventStoreConformanceSuite } from "@0xhoneyjar/freeside-activities-adapters/conformance";
+import { makeYourPostgresEventStore } from "./postgres-event-store.js";
+
+runEventStoreConformanceSuite(
+  (config) => {
+    const handle = makeYourPostgresEventStore({ pool: testPool, ...config });
+    return { contract: handle.contract, port: handle.port, clear: handle.clear };
+  },
+  "yourworld postgres adapter",
+);
+```
+
+Same `describe`/`it` blocks · same invariants (CL-EventStore-1..7 + Fix-A1) · if your adapter passes, the substrate guarantees the invariants hold.
+
+---
+
+## Step 3 — Register kinds
+
+The built-in `ActivityKind` sealed union covers four canonical shapes:
+
+| Kind | Period model | Reward shape | Verification typical |
 |---|---|---|---|
-| 1 | `packages/protocol/` (Zod schemas + JSON Schema) | low — schema-only, no impl coupling | coordination window |
-| 2 | `packages/ports/` (IQuestEngine + IBadgeService + IRaffleService interfaces) | low — interface only | after package 1 stable |
-| 3 | `packages/mcp-tools/` (MCP tool specs) | low — net-new content; ruggy consumer ready | parallel with 1-2 |
-| 4 | `packages/adapters/quest-engine-client.ts` (typed HTTP client) | medium — consumers (worlds) rewire imports | after ports extracted |
-| 5 | `packages/engine/` (headless quest logic) | high — the load-bearing extraction | requires CubQuests cycle window |
-| 6 | `packages/ui/` (React components) | medium — design-system coupling per world | last; needs taste alignment per world |
+| `quest` | one-shot (period_key = null) | badge · token · cosmetic · external | manual-curator · signed-memo-tx · on-chain-event |
+| `mission` | recurring (period_key = ISO-week) | same as quest | same as quest |
+| `badge-claim` | one-shot (period_key = null) | badge-mint only | merkle-proof (off-chain snapshot → on-chain claim) |
+| `raffle-entry` | season-bound (period_key = custom-cycle) | external (raffle ticket grant) | partner-api · webhook-hmac |
 
-### Net-new (not extraction)
+### `WorldDefined` extension
 
-- Webhook payload schemas (`packages/protocol/webhook-payload.schema.json`)
-- NATS event schemas (`packages/protocol/event.schema.json`)
-- MCP tool manifest + tools (`packages/mcp-tools/`)
+If your world needs a kind outside the built-in four, declare it via the `WorldDefinedKindId` brand:
 
-## What cubquests + cubquests-dashboard look like after cutover
+- Format: `<world>:<kind>` (slug-style · each half ≤120 chars · ≤256 total)
+- Reserved prefixes: `freeside-` · `loa-` · `core-` (rejected at substrate level)
+- Substrate caps payload size at 16 KiB and nesting at 8 levels (D26)
+- See `VERSIONING.md` for promotion-to-builtin SLA (when a world-defined kind earns its way into the substrate)
 
-```
-world-sprawl/cubquests/                  (turborepo)
-├── apps/
-│   ├── frontend/        ← rewires to `import * from 'freeside-quests/engine'`
-│   ├── creator-docs/    (unchanged)
-│   └── user-docs/       (unchanged)
-├── packages/
-│   ├── indexer/         ← rewires to import from `freeside-quests/adapters/indexer-template/`
-│   ├── ui/              ← deprecated; consumers import from `freeside-quests/ui` instead
-│   └── (eslint-config, typescript-config — unchanged)
-└── ...
+---
 
-world-sprawl/cubquests-dashboard/        (Next.js — STAYS as canonical operator surface)
-├── app/                 (chrome, unchanged)
-├── components/          (chrome-specific, unchanged)
-├── lib/                 ← rewires to `import * from 'freeside-quests/{engine,ports,adapters}'`
-├── actions/             ← becomes thin wrappers over `freeside-quests/engine/`
-└── ...
+## Step 4 — Run conformance
+
+### Adapter conformance gate
+
+```bash
+bunx vitest run packages/adapters/src/conformance
+# → 13 EventStoreContract tests + 5 RewardPort tests
+# → MUST pass before world goes live
 ```
 
-## What changes for downstream consumers
+### Cross-runtime determinism (sprint-3 deliverable)
 
-| consumer | before | after |
-|---|---|---|
-| `cubquests-dashboard/actions/*` | inline TS + Supabase | `import { publishQuest } from 'freeside-quests/engine'` |
-| `world-sprawl/cubquests/apps/frontend` | inline `lib/` for claim flows | `import { claim } from 'freeside-quests/engine/claim'` |
-| `world-purupuru` (when Year 2 lands quests) | (no quest substrate) | `import { IQuestEngine, type Quest } from 'freeside-quests/ports'` + `compose_with: freeside-quests` in world-manifest |
-| `0xHoneyJar/freeside-ruggy` | (no quest queries today) | imports `mcp-tools/manifest.json` to register quest-aware tools |
-| Any future world | declarative `compose_with: freeside-quests` | typed access via `freeside-quests/ports`; no inline duplication |
+The substrate ships 21 golden vectors at `packages/protocol/src/golden-vectors/`. Re-derive them in your runtime (Rust port · Python port · etc) and assert byte-identity:
 
-## Phase 2 — runtime quest registry (later)
+```typescript
+import { GOLDEN_VECTORS } from "@0xhoneyjar/quests-protocol/golden-vectors";
 
-Once Phase 2 of [[freeside-worlds]] registry lands (DB-backed runtime queries), the Freeside dashboard can render:
-- Per-world quest aggregate (active/total, completions, top performers)
-- Cross-world quest discovery (find all quests across THJ ecosystem)
-- Per-partner quest performance
+for (const vector of GOLDEN_VECTORS) {
+  const computed = await computeEventId(vector.input);
+  if (computed !== vector.expected_event_id) {
+    throw new Error(`cross-runtime drift on ${vector.id}`);
+  }
+}
+```
 
-That requires `freeside-quests/packages/registry/` (parallel to `freeside-worlds/packages/registry/`). Defer until cross-world quest discovery becomes a real product surface (post-MVP).
+If your runtime produces drift, the bug is in your runtime — the substrate is the source of truth.
 
-## Open coordination items
+### MCP gateway validation contract
 
-- [ ] Confirm CubQuests team is OK with extraction direction (operator already declared this in vault; confirm with whoever does daily CubQuests work)
-- [ ] Decide install mechanism (npm vs git-url vs hybrid) per [[freeside-modules-as-installables]] — affects how downstream `import` paths look
-- [ ] Confirm cubquests-dashboard rename plan — does it get a `freeside-` prefix in the future (e.g., `freeside-cubquests-dashboard` if it's a freeside-* operator-facing dashboard) or stay as `cubquests-dashboard` (per-tenant tooling)?
-- [ ] First consumer to migrate post-extraction (suggested: Purupuru Year 2 — net-new use; no legacy import path to break)
-- [ ] Database schema migration plan: cubquests Postgres stays as the source-of-truth; module ports describe access surface; how does a world that wants its OWN quest DB swap in a different impl behind the same port?
+If your world hosts the MCP gateway:
+
+1. Validate manifest at boot via `validateMCPManifest(JSON.parse(manifestJson))` (from `@0xhoneyjar/freeside-activities-mcp-tools`)
+2. Validate every tool spec against the manifest contract — name MUST match spec basename · `$schema` MUST pin draft 2020-12 · `$id` MUST be under `https://schemas.freeside.thj/mcp/`
+3. Reject any token with `alg !== "Ed25519"` at schema decode (the substrate already does this; defense-in-depth is your gateway's check)
+
+---
+
+## TIER-1 / TIER-2 / TIER-3 raffle threshold guidance
+
+> **⚠ THREAT MODEL WARNING — READ BEFORE CONFIGURING RAFFLES ⚠**
+>
+> Raffles are **adversarial** — the design must assume a motivated attacker who controls
+> their own RNG and will try to claim disproportionate winnings. The substrate enforces a
+> threshold gate at `packages/mcp-tools/src/raffle-threshold.ts`:
+>
+> - **TIER-1 (PRNG-only)** — acceptable ONLY for low-stakes raffles. Threshold:
+>   `reward_count > 10 OR reward_class ∈ {NFT, token}` triggers REJECTION unless the
+>   cycle config declares `opt_in_tier_1_above_threshold: true` (operator override
+>   with documented rationale).
+>
+> - **TIER-2 (block-hash anchored)** — externally-anchored randomness (e.g., post-draw
+>   block hash from the chain you're indexing). Acceptable for medium-stakes. No
+>   threshold.
+>
+> - **TIER-3 (VRF)** — Chainlink VRF or equivalent verifiable randomness. Required
+>   for high-stakes (large NFT drops · significant token grants · season finale prizes).
+>   No threshold.
+
+### How to configure
+
+```typescript
+import { classifyRaffleTier } from "@0xhoneyjar/freeside-activities-mcp-tools";
+
+const verdict = classifyRaffleTier({
+  rewardClass: "NFT",
+  rewardCount: 5,
+  declaredTier: "TIER-2",  // escalation required above threshold
+});
+
+if (verdict._tag !== "ok") {
+  // RaffleTierViolation — cycle config is invalid
+  throw new Error(verdict.reason);
+}
+```
+
+### Why the gate exists
+
+Cubquests' production raffles already operate under PRNG-only (TIER-1) for low-stakes
+weekly resource grants. That posture is fine for ≤10-prize cosmetic raffles where the
+operator absorbs the residual integrity risk. It is NOT fine for NFT or token raffles
+where the value-at-stake makes the gate the right place to fail closed.
+
+The substrate refuses the misconfiguration at load time. Worlds that genuinely need
+TIER-1 above threshold MUST set `opt_in_tier_1_above_threshold: true` explicitly — the
+operator's signed acknowledgment that they accept the integrity risk.
+
+See `[[weighted-raffle-draw-pattern]]` doctrine candidate (sprint-3 T3.8) for the full
+3-tier spec including seed-publication invariants.
+
+---
+
+## Common pitfalls
+
+### ❌ Don't reach across the boundary
+
+```typescript
+// WRONG — your world must NOT modify substrate-owned schema fields
+const corrupted = { ...activity, kind: "your-custom-string" };
+//                                ^^^^ violates sealed-union discipline
+```
+
+Use `WorldDefined` extension via `WorldDefinedKindId` brand instead.
+
+### ❌ Don't write events without nonce
+
+```typescript
+// WRONG — mutating events MUST carry caller-supplied nonce (Fix-A1)
+const event = { ...envelope, nonce: null };  // substrate rejects with NonceRequired
+```
+
+The substrate refuses derived-nonce fallback for mutating events. You MUST supply a
+caller-controlled nonce so retries are idempotent.
+
+### ❌ Don't bypass the IdentityResolverPort
+
+```typescript
+// WRONG — directly grabbing the chain address bypasses the substrate boundary (A5)
+const addr = await privyClient.getWalletAddress(identityId);
+```
+
+Use the port:
+
+```typescript
+const program = Effect.gen(function* () {
+  const resolver = yield* IdentityResolverPortTag;
+  const addr = yield* resolver.resolveToChainAddress(identityId, "ethereum");
+  return addr;
+});
+```
+
+### ❌ Don't trust client-supplied event_id
+
+```typescript
+// WRONG — accepting client-asserted event_id without re-derivation
+await eventStore.append(clientEvent, { partition_key: pk, expected_tip_hash: tip });
+```
+
+The in-memory adapter re-derives `event_id` via `computeEventId` and rejects mismatches
+(`verifyEventId: true` default). Production adapters SHOULD too — defense in depth
+against A6 violations.
+
+---
+
+## Adoption sequence checklist
+
+| ✓ | Step |
+|---|---|
+| ☐ | World-manifest.yaml declares `compose_with: @0xhoneyjar/quests-protocol` |
+| ☐ | Production `IdentityResolverPort` implemented + tested against `IdentityResolverError` variants |
+| ☐ | Production `EventStoreContract` adapter passes `runEventStoreConformanceSuite` (13 tests · no skips) |
+| ☐ | Production `RewardPort` passes `runRewardPortConformanceSuite` (5 tests · no skips) |
+| ☐ | Production `KeyProviderPort` implements rotation tri-state (active/grace/revoked) |
+| ☐ | Production `AuthReplayStore` backed by Redis SETEX or equivalent atomic primitive |
+| ☐ | MCP gateway validates manifest at boot via `validateMCPManifest` |
+| ☐ | Raffle config declares explicit tier per `classifyRaffleTier` (no implicit TIER-1 above threshold) |
+| ☐ | Cross-runtime parity: golden vectors re-derived in your runtime produce byte-identical output |
+| ☐ | World-defined `ActivityKind` extensions (if any) follow the `<world>:<kind>` naming + payload size bounds |
+
+---
+
+## Reference
+
+- `INTENT.md` — what the substrate IS / IS NOT
+- `EXTRACTION-MAP.md` — per-package source-of-record citations
+- `ACVP-MATRIX.md` — the 7-component matrix (sprint-3 T3.4)
+- `CMP-CONVENTION.md` — substrate-name vs chat-medium-name discipline (sprint-3 T3.5)
+- `VERSIONING.md` — schema_version + breaking-change SLA (sprint-3 T3.11b)
+- `grimoires/loa/sdd.md` §6 — security design (auth + cursor + rate-limit)
+- `grimoires/loa/sdd.md` §10 — adapter conformance contract
+- Adoption case study: cubquests-as-module migration (cycle-Q resume · post-sprint-3)
+- Sister composition pattern: `[[closed-loop-reward-mechanic]]` (questponzi-as-substrate)
