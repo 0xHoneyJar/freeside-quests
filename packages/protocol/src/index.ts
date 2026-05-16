@@ -156,6 +156,37 @@ export {
 // Forward-compat reward branded types
 export { CosmeticId, TokenId } from "./branded/index.js";
 
+// Typed ports + ProgressRecord + EventStoreContract (T1.13 + T1.14 + T1.15 · FR-8 + FR-11)
+export {
+  AppendOptions,
+  ChainAddress,
+  EventFilter,
+  IdentityChainNotSupported,
+  IdentityResolverError,
+  IdentityResolverUnavailable,
+  IdentityUnresolvableIdentity,
+  ProgressActivityNotFound,
+  ProgressAdapterUnavailable,
+  ProgressConcurrentUpdate,
+  ProgressError,
+  ProgressIdentityNotFound,
+  ProgressLifecycleState,
+  ProgressRecord,
+  RewardAdapterUnavailable,
+  RewardAlreadyGranted,
+  RewardError,
+  RewardGrantFailed,
+  RewardIdentityUnresolvable,
+  TipDescriptor,
+} from "./ports/index.js";
+export type {
+  CompletionEventPort,
+  EventStoreContract,
+  IdentityResolverPort,
+  ProgressPort,
+  RewardPort,
+} from "./ports/index.js";
+
 // Event-stream schemas + EventError + computeEventId (T1.7 + T1.9 + T1.10 · FR-5 + Fix-A1/A2)
 export {
   ActivityCompleted,

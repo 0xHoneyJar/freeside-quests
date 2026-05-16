@@ -156,11 +156,19 @@ describe("MintIntentId", () => {
 
 describe("PartitionKey", () => {
   it("accepts every declared scope variant", () => {
-    const scopes = ["activity", "identity", "world", "event-type", "composite"] as const;
-    for (const scope of scopes) {
-      const decoded = Schema.decodeUnknownSync(PartitionKey)({ scope, value: "any-value" });
-      expect(decoded.scope).toBe(scope);
-      expect(decoded.value).toBe("any-value");
+    // T1.20 added the composite-shape validator (must match `<a>::<b>`).
+    // Non-composite scopes accept the test value as-is.
+    const cases = [
+      { scope: "activity" as const, value: "any-value" },
+      { scope: "identity" as const, value: "any-value" },
+      { scope: "world" as const, value: "any-value" },
+      { scope: "event-type" as const, value: "any-value" },
+      { scope: "composite" as const, value: "world_a::act_b" },
+    ];
+    for (const c of cases) {
+      const decoded = Schema.decodeUnknownSync(PartitionKey)(c);
+      expect(decoded.scope).toBe(c.scope);
+      expect(decoded.value).toBe(c.value);
     }
   });
 
