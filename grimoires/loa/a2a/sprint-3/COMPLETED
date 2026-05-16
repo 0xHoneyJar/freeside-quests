@@ -1,0 +1,39 @@
+sprint-3 · acvp-modules-genesis · COMPLETED 2026-05-16
+
+Implementation:  13/13 tasks · 19 new tests · 667 workspace tests green
+Review:          APPROVED (round 2 · 3 blockers fixed: T3.13 snapshot · NOTES.md S3 close · Decision Log entries)
+Audit:           APPROVED - LETS FUCKING GO
+                 0 CRIT · 0 HIGH · 1 MED carryover · 2 LOW architectural
+                 Overall risk: LOW · OWASP Top 10 + CWE Top 25 mitigated
+
+Commits:
+  6dc3fd5  T3.1-T3.5 doc surface rewrites (post-rename framing)
+  09c1200  T3.6-T3.12 cycle close (vault doctrine + cross-runtime + CLAUDE/VERSIONING + publish-readiness)
+  [round-2-fix]  C1/C2/C3 inline fixes (cubquests-snapshot + NOTES.md + Decision Log)
+
+Sprint-3 deliverables:
+  · docs/INTENT.md (110 lines)             — post-rename framing
+  · docs/EXTRACTION-MAP.md (123 lines)      — evidence trail
+  · docs/INTEGRATION-PATH.md (343 lines)    — 4-step world adoption
+  · docs/ACVP-MATRIX.md (294 lines)         — canonical 7-component reference
+  · docs/CMP-CONVENTION.md (356 lines)      — surface adapter discipline
+  · docs/VERSIONING.md (197 lines)          — schema evolution policy
+  · CLAUDE.md (132 lines)                   — agent operating mode
+  · grimoires/loa/proposals/                — 3 vault doctrine candidates
+  · packages/protocol/src/cross-runtime/    — 19 cross-runtime tests (8 compass + 11 cubquests)
+  · grimoires/loa/reality/cubquests-snapshot-2026-05-15/ — 4 evidence files + README
+
+Cycle (acvp-modules-genesis) totals:
+  · 48 tasks complete (20 + 15 + 13)
+  · 667 workspace tests (665 passed + 2 skipped postgres stubs)
+  · 8 audit-approved sprint closes (sprint-1 · sprint-2 · sprint-3)
+  · 4 npm packages publish-ready
+
+Carryovers (NOT blocking):
+  · sprint-1 MED-001: EventEnvelope strict-preimage hardening
+  · sprint-2 LOW-001..003: cold-start docs · JWKS-refresh port · rate-limit caller cap
+  · sprint-3 MED-1: property-based JCS tests (S1.T1.12b · IMP-001)
+  · sprint-3 LOW-1: cross-runtime byte-identity validation (sprint-Q work)
+  · sprint-3 LOW-2: postgres adapter impl (cycle-Q resume)
+
+Next gate:  /ship → merge PR #16 → cycle archive → freeside-mint
