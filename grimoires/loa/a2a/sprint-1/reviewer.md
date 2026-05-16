@@ -4,26 +4,26 @@ type: implementation-report
 cycle: acvp-modules-genesis
 sprint: sprint-1
 sprint_global_id: bd-2wa
-cycle_count: 2
+cycle_count: 3
 simstim_id: simstim-20260515-6a20a74b
 plan_id: plan-20260515-6a20a74b
-tasks_completed: [T1.1, T1.2, T1.3, T1.4]
-tasks_remaining: [T1.5, T1.6, T1.7, T1.8, T1.9, T1.10, T1.11, T1.12, T1.13, T1.14, T1.15, T1.16, T1.17, T1.18, T1.19, T1.20]
+tasks_completed: [T1.1, T1.2, T1.3, T1.4, T1.5, T1.12]
+tasks_remaining: [T1.6, T1.7, T1.8, T1.9, T1.10, T1.11, T1.13, T1.14, T1.15, T1.16, T1.17, T1.18, T1.19, T1.20]
 ---
 
-# Sprint 1 · Implementation Report (in progress · cycles 1–2)
+# Sprint 1 · Implementation Report (in progress · cycles 1–3)
 
 ## Executive Summary
 
 Cycle 1 (commit `45b8e7e`): T1.1 workspace tooling (biome + vitest + Effect ^3.12) and T1.2 nine branded types (+30 constructor-discipline tests).
 
-Cycle 2 (this commit): T1.3 Activity schema (FR-1 · CL-Activity-1..4) and T1.4 WorldDefined seam (D19 · §9.1 namespace governance). +31 activity tests covering golden per-kind decode, cross-kind reject, ISO-week boundary cases, reserved-prefix rejection, and round-trip stability. Activity supertype + sealed ActivityKind union (Quest · Mission · BadgeClaim · RaffleEntry · WorldDefined) + WorldDefinedKindId substrate-validator + minimal ActivityStep / ActivityReward stubs (full T1.5 / T1.6 in later cycles).
+Cycle 2 (commit `bac0416`): T1.3 Activity schema (FR-1 · CL-Activity-1..4) and T1.4 WorldDefined seam (D19 · §9.1 namespace governance) — 31 activity tests covering golden per-kind decode, cross-kind reject, ISO-week boundary cases, reserved-prefix rejection. Substrate-API discovery: Effect 3.21.2 removed `Schema.TaggedEnum`; sealed unions in 3.x use `Schema.Union(Schema.TaggedStruct(...), ...)`.
 
-**Substrate-API discovery**: Effect 3.21.2 removed `Schema.TaggedEnum` (used in PRD code samples). Sealed unions in 3.x use `Schema.Union(Schema.TaggedStruct(...), ...)`. Re-applied this idiom across ActivityKind + ActivityReward; documented in NOTES.md Decision Log so T1.5 / T1.6 inherit the pattern.
+Cycle 3 (this commit): T1.5 ActivityStep + sealed VerificationMethod with 6 variants (ManualCurator · SignedMemoTx · MerkleProof · WebhookHmac · PartnerApi · OnChainEvent with vm discriminator per D12) + StepCompletion struct + PartnerId brand. T1.12 encoding helpers (`encoding/jcs.ts` wrapping RFC 8785 `canonicalize` npm pkg + sha256 helper · `encoding/date.ts` RFC3339Date brand + roundtrip helpers · `encoding/decimal.ts` DecimalValue struct + bigint helpers covering up to 256-bit values per D14). 53 new tests (39 step + 14 encoding). Loose-struct convention from PRD §FR-3 confirmed (Effect.Schema.Struct is non-strict by default; extra fields drop silently — sealed-union discipline enforced via `_tag`).
 
-**Status**: 206/206 tests pass (75 new ACVP-substrate + 145 legacy = 0 regressions). Typecheck clean. Biome clean (20 files scoped to NEW ACVP paths).
+**Status**: 259/259 tests pass (114 new ACVP-substrate across 3 cycles + 145 legacy · 0 regressions). Typecheck clean. Biome clean (27 files scoped).
 
-T1.5 through T1.20 remain pending (16 tasks). Subsequent run-mode cycles continue the implement→review→audit loop until the full sprint ships or circuit-breaker trips.
+T1.6, T1.7, T1.8, T1.9, T1.10, T1.11, T1.13–T1.20 remain pending (14 tasks). T1.6 (ActivityReward sealed union + RewardState async machine + Fix-A1 nonce) is unblocked by T1.5 + T1.12. T1.9 (computeEventId pure-deterministic) unblocked by T1.12 sha256JCS + canonicalizeJCS. T1.8 (canonical preimages) unblocked by T1.12.
 
 ## AC Verification
 
@@ -31,7 +31,7 @@ T1.5 through T1.20 remain pending (16 tasks). Subsequent run-mode cycles continu
 
 | AC (verbatim from sprint.md:78-86) | Status | Evidence |
 |---|---|---|
-| all 20 tasks T1.1 through T1.20 complete with green tests | ⚠ Partial | T1.1–T1.4 complete (cycle 1: `branded.test.ts:1-207` · 30 tests · cycle 2: `activity.test.ts:1-328` · 31 tests). T1.5-T1.20 deferred to subsequent cycles. |
+| all 20 tasks T1.1 through T1.20 complete with green tests | ⚠ Partial | T1.1–T1.5 + T1.12 complete (114 ACVP tests across `branded.test.ts` + `activity.test.ts` + `step.test.ts` + `encoding.test.ts`). T1.6, T1.7, T1.8, T1.9, T1.10, T1.11, T1.13–T1.20 deferred. |
 | `bun test --filter @0xhoneyjar/freeside-activities/protocol` 100% green | ⚠ Partial | Filter alias requires module rename (T1.x cycle); current command `bun run test` runs all packages incl. protocol = 175/175 green |
 | golden-vectors test asserts cross-runtime determinism for all 7 event types | ✗ Not met | T1.11 dependency · scheduled for cycle 2+ |
 | compass-roundtrip + cubquests-roundtrip conformance tests green | ⚠ Partial | Placeholders shipped in `activity.test.ts:300-327` (Quest encode/decode + RaffleEntry encode/decode prove byte-stable roundtrip at the protocol layer). Full cross-runtime conformance against actual compass + cubquests fixtures lands later when those packages are bound (S3 work). |
@@ -69,6 +69,24 @@ T1.5 through T1.20 remain pending (16 tasks). Subsequent run-mode cycles continu
 | cross-kind reject | ✓ Met | `activity.test.ts:83-88` (Quest with ISO-week kind), `:137-142` (BadgeClaim with ISO-week), `:154-158` (RaffleEntry with null), `:110-117` (malformed ISO-weeks) |
 | compass-roundtrip + cubquests-roundtrip tests | ⚠ Partial | Placeholders at `activity.test.ts:300-327` prove protocol-layer encode/decode is byte-stable for Quest (compass-shape) + RaffleEntry (cubquests-shape). Full conformance against the actual fixture sources lands when those packages are bound. |
 | Activity.lifecycle_state field (HC-IMP-003) | ✓ Met | `Activity.ts:53-60` defines `ActivityLifecycleState` literal union · `activity.test.ts:56-71` verifies all 5 states + rejection of out-of-union values |
+
+#### T1.5 — ActivityStep + VerificationMethod (FR-3 · CL-Step-1..3)
+
+| AC (verbatim from sprint.md:59) | Status | Evidence |
+|---|---|---|
+| roundtrip per VerificationMethod method | ✓ Met | `step.test.ts:22-48` ManualCurator · `:50-72` SignedMemoTx · `:74-99` MerkleProof · `:101-137` WebhookHmac · `:139-175` PartnerApi · `:177-211` OnChainEvent — each variant has a clean-decode test |
+| `vm` rejected for non-OnChainEvent cases | ⚠ Adapted | PRD §FR-3 uses bare `Schema.Struct` which is loose by default — extra fields are dropped (not rejected). `step.test.ts:35-47, 63-71, 90-98, 127-136, 165-174` verify the `vm` field is STRIPPED from the decoded value (`expect("vm" in v).toBe(false)`). Sealed-union discipline enforced via `_tag` rejection (`step.test.ts:213-221`). The PRD-level semantic — "vm only meaningful on OnChainEvent" — is preserved at the type level. |
+| stable ordering | ✓ Met | `step.test.ts:268-292` proves canonical `(order, step_id)` sort produces a deterministic result for equal-order tie-break (§5.6 golden rule) |
+| StepCompletion shape | ✓ Met | `ActivityStep.ts:115-127` defines `{step_id, order, completed_at: RFC3339Date, event_id: EventId}` · `step.test.ts:262-266, 294-300` verify decode + rejection of malformed event_id / completed_at |
+
+#### T1.12 — encoding helpers (D14 RESOLVED · §5.3 + §5.8)
+
+| AC (verbatim from sprint.md:66) | Status | Evidence |
+|---|---|---|
+| `jcs.ts` pure-function test | ✓ Met | `encoding.test.ts:141-181` proves byte-identical output across 100 invocations + key-sorting + no-whitespace + nested-recursion + reject-undefined |
+| `date.ts` roundtrip | ✓ Met | `encoding.test.ts:43-58` Date → RFC3339 → Date with ms-precision equality across 3 input cases · `:60-65` always-Z suffix |
+| `decimal.ts` handles negative + 18-decimal cases | ✓ Met | `encoding.test.ts:97-100` 1 ETH (18 decimals) · `:102-105` negative · `:107-114` 256-bit max · `:116-130` roundtrip · `:132-138` fractional-throw |
+| sha256JCS hash-ground for computeEventId | ✓ Met | `encoding.test.ts:183-202` 64-char hex digest · determinism · byte-sensitive |
 
 #### T1.4 — WorldDefined seam (D19 · §9.1)
 
@@ -147,14 +165,18 @@ T1.5 through T1.20 remain pending (16 tasks). Subsequent run-mode cycles continu
 6. Confirm `packages/protocol/package.json:46` pins `effect: ^3.12.0`
 7. Confirm `packages/protocol/src/index.ts:90-104` re-exports the 9 branded types
 
-## Cycle-3+ Continuation
+## Cycle-4+ Continuation
 
 Per run-mode loop semantics, the next cycle of `/run sprint-1` should:
 1. Re-read this report (treating it as `engineer-feedback.md`-equivalent for partial-completion handoff)
-2. Pick up T1.5 (ActivityStep + VerificationMethod · FR-3) — full schema replaces the cycle-2 minimal stub
-3. Continue through T1.6 → T1.20 across N cycles until all 20 tasks complete with green tests
+2. Pick up T1.6 (ActivityReward sealed union + RewardState async machine + Fix-A1 nonce policy + BigInt-as-DecimalValue) — replaces cycle-2 `None` stub
+3. Continue through T1.7 (EventEnvelope + 7 per-event schemas) → T1.8 (canonical preimages · uses T1.12 JCS) → T1.9 (computeEventId · uses T1.12 sha256JCS) → T1.10 (Fix-A1 nonce enforcement) → T1.11 (golden vectors) → T1.13–T1.20
 4. Then emit the COMPLETED marker and trigger /review-sprint sprint-1
 
-**Substrate-API note for downstream cycles**: Effect 3.21 has no `Schema.TaggedEnum`. T1.5 (VerificationMethod sealed-union with 6 variants) and T1.6 (ActivityReward + RewardState async machine) MUST use `Schema.Union(Schema.TaggedStruct(...), ...)` — the same pattern adopted in cycle 2 for `ActivityKind.ts` + `ActivityReward.ts`. PRD code samples that say `Schema.TaggedEnum({...})` need to be translated.
+**Notes for downstream cycles**:
+- Effect 3.x sealed unions: `Schema.Union(Schema.TaggedStruct("Tag", {...}), ...)` — applied in ActivityKind, ActivityReward, VerificationMethod across cycles 2–3
+- Effect 3.x Schema.Struct is loose by default — extra fields drop silently on decode. Sealed-union discipline is enforced via `_tag` discriminator + variant-specific required fields, NOT via extra-field rejection
+- T1.12 encoding helpers are imported from `../encoding/index.ts`: `RFC3339Date`, `DecimalValue`, `canonicalizeJCS`, `sha256JCS`. T1.6/T1.7/T1.8/T1.9 all build on these
+- `canonicalize` npm pkg (^2.1.0) is now a runtime dep of `@0xhoneyjar/quests-protocol`
 
-Cycle 1 branded types + cycle 2 Activity supertype + ActivityKind sealed union are the foundation T1.5 → T1.20 build on.
+Cycle 1 branded types (incl. PeriodKey, PartnerId) + cycle 2 Activity + ActivityKind + cycle 3 ActivityStep + StepCompletion + encoding helpers form a 7-layer substrate the remaining tasks build on.

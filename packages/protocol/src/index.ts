@@ -98,6 +98,7 @@ export {
   MintIntentId,
   PartitionKey,
   PartitionScope,
+  PartnerId,
   PeriodKey,
   SnapshotId,
   StepId,
@@ -105,14 +106,35 @@ export {
   WorldId,
 } from "./branded/index.js";
 
-// Activity substrate (FR-1 + FR-2 · cycle acvp-modules-genesis · sprint-1 · cycle 2)
+// Activity substrate (FR-1 + FR-2 + FR-3 · cycle acvp-modules-genesis · sprint-1)
 export {
   Activity,
   ActivityKind,
   ActivityLifecycleState,
   ActivityReward,
   ActivityStep,
+  OnChainVmKind,
   RESERVED_KIND_PREFIXES,
+  StepCompletion,
+  VerificationManualCurator,
+  VerificationMerkleProof,
+  VerificationMethod,
+  VerificationOnChainEvent,
+  VerificationPartnerApi,
+  VerificationSignedMemoTx,
+  VerificationWebhookHmac,
   WorldDefinedKindId,
   WorldSubSchemaId,
 } from "./activity/index.js";
+
+// Canonical encoding helpers (T1.12 · D14 · §5.3 + §5.8)
+export {
+  bigintFromDecimal,
+  bigintToDecimal,
+  canonicalizeJCS,
+  dateFromRFC3339,
+  dateToRFC3339,
+  DecimalValue,
+  RFC3339Date,
+  sha256JCS,
+} from "./encoding/index.js";

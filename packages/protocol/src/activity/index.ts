@@ -25,4 +25,15 @@ export {
   WorldSubSchemaId,
 } from "./ActivityKind.js";
 export { ActivityReward } from "./ActivityReward.js";
-export { ActivityStep } from "./ActivityStep.js";
+export {
+  ActivityStep,
+  OnChainVmKind,
+  StepCompletion,
+  VerificationManualCurator,
+  VerificationMerkleProof,
+  VerificationMethod,
+  VerificationOnChainEvent,
+  VerificationPartnerApi,
+  VerificationSignedMemoTx,
+  VerificationWebhookHmac,
+} from "./ActivityStep.js";

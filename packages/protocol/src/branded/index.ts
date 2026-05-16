@@ -16,6 +16,7 @@ export { EventId } from "./EventId.js";
 export { IdentityId } from "./IdentityId.js";
 export { MintIntentId } from "./MintIntentId.js";
 export { PartitionKey, PartitionScope } from "./PartitionKey.js";
+export { PartnerId } from "./PartnerId.js";
 export { ISOWeek, PeriodKey, WorldDefinedKey } from "./PeriodKey.js";
 export { SnapshotId } from "./SnapshotId.js";
 export { StepId } from "./StepId.js";
