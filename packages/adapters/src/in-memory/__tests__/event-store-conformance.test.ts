@@ -164,6 +164,36 @@ describe("EventStoreContract conformance — in-memory adapter", () => {
         ),
       );
       expect(fail._tag).toBe("CASFailed");
+      // C4 fix: expected (0 for null tip) MUST differ from actual (1 after first append)
+      if (fail._tag === "CASFailed") {
+        expect(fail.expected_version).toBe(0);
+        expect(fail.actual_version).toBe(1);
+      }
+    });
+
+    it("CASFailed payload reconstructs expected_version from a known prior tip (C4)", async () => {
+      const { contract } = makeInMemoryEventStore();
+      const partition = partitionFor(activityA);
+      const e1 = await buildActivityCompleted({ nonce: "n1" });
+      const e2 = await buildActivityCompleted({ nonce: "n2", ts: ts1 });
+      const e3 = await buildActivityCompleted({ nonce: "n3", ts: ts2 });
+      await Effect.runPromise(
+        contract.append(e1, { partition_key: partition, expected_tip_hash: null }),
+      );
+      await Effect.runPromise(
+        contract.append(e2, { partition_key: partition, expected_tip_hash: e1.event_id }),
+      );
+      // Stale writer thinks tip is e1 — but actually tip has advanced to e2.
+      const fail = await Effect.runPromise(
+        Effect.flip(
+          contract.append(e3, { partition_key: partition, expected_tip_hash: e1.event_id }),
+        ),
+      );
+      expect(fail._tag).toBe("CASFailed");
+      if (fail._tag === "CASFailed") {
+        expect(fail.expected_version).toBe(1); // e1 was at sequence 1
+        expect(fail.actual_version).toBe(2);   // partition now has 2 events
+      }
     });
 
     it("accepts append with correct expected_tip_hash", async () => {
@@ -241,6 +271,24 @@ describe("EventStoreContract conformance — in-memory adapter", () => {
         const again = await Effect.runPromise(contract.read(partition));
         expect(again.map((e) => e.event_id)).toEqual(firstIds);
       }
+    });
+
+    it("read rejects negative after_sequence with SchemaValidation (C7)", async () => {
+      const { contract } = makeInMemoryEventStore();
+      const partition = partitionFor(activityA);
+      const e1 = await buildActivityCompleted({ nonce: "n1" });
+      await Effect.runPromise(
+        contract.append(e1, { partition_key: partition, expected_tip_hash: null }),
+      );
+      const failure = await Effect.runPromise(Effect.flip(contract.read(partition, -1)));
+      expect(failure._tag).toBe("SchemaValidation");
+    });
+
+    it("read rejects non-integer after_sequence with SchemaValidation (C7)", async () => {
+      const { contract } = makeInMemoryEventStore();
+      const partition = partitionFor(activityA);
+      const failure = await Effect.runPromise(Effect.flip(contract.read(partition, 1.5)));
+      expect(failure._tag).toBe("SchemaValidation");
     });
 
     it("read with after_sequence skips the first N events", async () => {

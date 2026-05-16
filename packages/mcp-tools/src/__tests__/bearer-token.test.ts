@@ -248,12 +248,71 @@ describe("makeInMemoryJTIReplayTracker", () => {
   });
 
   it("GCs entries older than window on next insert", () => {
-    const tracker = makeInMemoryJTIReplayTracker(60); // 60s window
+    const tracker = makeInMemoryJTIReplayTracker({ windowSeconds: 60 }); // 60s window
     tracker.record("jti-a", 0);
     tracker.record("jti-b", 30_000);
     // 70s later, both should be GC'd before new insert
     const fresh = tracker.record("jti-c", 100_000);
     expect(fresh.fresh).toBe(true);
     expect(tracker.size()).toBe(1);
+  });
+
+  describe("Fix-S6: bounded LRU memory cap (C1)", () => {
+    it("evicts oldest entries when maxEntries exceeded (FIFO insertion order)", () => {
+      const tracker = makeInMemoryJTIReplayTracker({
+        windowSeconds: 3600,
+        maxEntries: 3,
+      });
+      tracker.record("jti-1", 0);
+      tracker.record("jti-2", 1);
+      tracker.record("jti-3", 2);
+      // Fourth insertion forces eviction of jti-1 (the oldest)
+      tracker.record("jti-4", 3);
+      expect(tracker.size()).toBe(3);
+      // jti-2, jti-3, jti-4 are still tracked
+      expect(tracker.record("jti-2", 5).fresh).toBe(false);
+      expect(tracker.record("jti-3", 6).fresh).toBe(false);
+      expect(tracker.record("jti-4", 7).fresh).toBe(false);
+      // jti-1 was evicted → re-recording it returns fresh AND evicts jti-2 (now oldest)
+      const reInserted = tracker.record("jti-1", 8);
+      expect(reInserted.fresh).toBe(true);
+      expect(tracker.size()).toBe(3);
+    });
+
+    it("default memory cap is 10000 jtis", () => {
+      const tracker = makeInMemoryJTIReplayTracker({ windowSeconds: 3600 });
+      // Insert 10001 distinct jtis at distinct times
+      for (let i = 0; i < 10_001; i++) {
+        tracker.record(`jti-${i}`, i);
+      }
+      // Cap enforced — size capped at 10000
+      expect(tracker.size()).toBe(10_000);
+    });
+  });
+
+  describe("Fix-S6: cold-start posture (C1)", () => {
+    it("rejects every jti while now < coldStartUntilMs", () => {
+      const tracker = makeInMemoryJTIReplayTracker({
+        windowSeconds: 3600,
+        coldStartUntilMs: 100,
+      });
+      // Before cold-start lifts: every record rejected as not-fresh
+      expect(tracker.record("jti-a", 0).fresh).toBe(false);
+      expect(tracker.record("jti-b", 50).fresh).toBe(false);
+      expect(tracker.record("jti-c", 99).fresh).toBe(false);
+      // After cold-start lifts: normal posture
+      expect(tracker.record("jti-d", 100).fresh).toBe(true);
+      expect(tracker.record("jti-e", 200).fresh).toBe(true);
+    });
+
+    it("cold-start posture does not pollute the store (no entries inserted)", () => {
+      const tracker = makeInMemoryJTIReplayTracker({
+        windowSeconds: 3600,
+        coldStartUntilMs: 100,
+      });
+      tracker.record("jti-a", 0);
+      tracker.record("jti-b", 50);
+      expect(tracker.size()).toBe(0); // nothing persisted during cold-start
+    });
   });
 });

@@ -21,6 +21,8 @@
 import { Data, Effect, Schema } from "effect";
 
 import {
+  type KeyProviderError,
+  type KeyProviderPort,
   type MCPBearerToken,
   type MCPToolPermission,
   TOKEN_REPLAY_WINDOW_SECONDS,
@@ -94,8 +96,66 @@ export const acceptAllSignatureVerifier: SignatureVerifier = {
   verify: () => Effect.succeed(true as const),
 };
 
+/**
+ * makeKeyProviderSignatureVerifier — composes a {@link KeyProviderPort}
+ * (sprint-2 review C2 · Fix-S4 + IMP-005) with the validator pipeline.
+ *
+ * Behavior:
+ *   - `KidNotFound` → TokenSignatureInvalid with reason "kid not found"
+ *   - `KeyExpired` → TokenSignatureInvalid with reason "key expired"
+ *   - `KeyRevoked` → TokenSignatureInvalid with reason "key revoked"
+ *   - `KeyProviderUnavailable` → TokenSignatureInvalid with reason "provider unavailable"
+ *
+ * Once a kid resolves to a usable key (active OR grace), the verifier
+ * delegates the actual signature check to the supplied `verify` callback.
+ * The callback is where production drops in real Ed25519 against the
+ * resolved `key_material_hex`. Tests default to "trust the key state" —
+ * useful for asserting rotation flow without standing up real crypto.
+ */
+export const makeKeyProviderSignatureVerifier = (
+  provider: KeyProviderPort,
+  verify: (
+    token: MCPBearerToken,
+    key_material_hex: string,
+  ) => Effect.Effect<boolean, never> = () => Effect.succeed(true),
+): SignatureVerifier => ({
+  verify: (token) =>
+    Effect.gen(function* () {
+      const outcome = yield* provider.resolveKey(token.kid).pipe(Effect.either);
+      if (outcome._tag === "Left") {
+        return yield* Effect.fail(translateKeyProviderError(token.kid, outcome.left));
+      }
+      const keyState = outcome.right;
+      // active + grace both produce usable keys; revoked is filtered earlier
+      // by the port itself (it returns KeyRevoked rather than a usable KeyState).
+      const ok = yield* verify(token, keyState.key_material_hex);
+      if (!ok) {
+        return yield* Effect.fail(
+          new TokenSignatureInvalid({ kid: token.kid, reason: "signature mismatch" }),
+        );
+      }
+      return true as const;
+    }),
+});
+
+const translateKeyProviderError = (
+  kid: string,
+  err: KeyProviderError,
+): TokenSignatureInvalid => {
+  switch (err._tag) {
+    case "KidNotFound":
+      return new TokenSignatureInvalid({ kid, reason: "kid not found" });
+    case "KeyExpired":
+      return new TokenSignatureInvalid({ kid, reason: `key expired at ${err.expired_at}` });
+    case "KeyRevoked":
+      return new TokenSignatureInvalid({ kid, reason: `key revoked at ${err.revoked_at}` });
+    case "KeyProviderUnavailable":
+      return new TokenSignatureInvalid({ kid, reason: `provider unavailable: ${err.reason}` });
+  }
+};
+
 // ---------------------------------------------------------------------------
-// Replay tracker
+// Replay tracker (in-memory test fixture · production uses AuthReplayStore)
 // ---------------------------------------------------------------------------
 
 interface ReplayEntry {
@@ -104,10 +164,20 @@ interface ReplayEntry {
 }
 
 /**
- * In-memory jti replay tracker. Production replaces with Redis SETNX +
- * expiry. The window is the TOKEN_REPLAY_WINDOW_SECONDS constant — entries
- * older than that are GC'd on each insert (amortized O(1) for tests; an
- * actual sorted-set is the production move).
+ * In-memory jti replay tracker (TEST FIXTURE / DEV-ONLY).
+ *
+ * Per sprint-plan §12.3 Fix-S6:
+ *   - (a) bounded LRU with explicit memory cap (default 10000 jtis OR
+ *     1-hour TTL whichever first)
+ *   - (b) cold-start = reject-all-until-window-elapses when configured
+ *     (NOT persisted by default)
+ *   - (c) production interface defined: `AuthReplayStore` port
+ *     (`@0xhoneyjar/quests-protocol`) — production Redis SETEX consumes it
+ *
+ * The "size" return on `record` is for observability; the LRU cap is
+ * enforced by evicting the oldest insertion-order entry when full.
+ * JS Map preserves insertion order, so the first key in the keys() iterator
+ * is the LRU.
  */
 export interface JTIReplayTracker {
   readonly record: (
@@ -117,11 +187,30 @@ export interface JTIReplayTracker {
   readonly size: () => number;
 }
 
+export interface InMemoryJTIReplayTrackerConfig {
+  /** Replay window in seconds. Default: TOKEN_REPLAY_WINDOW_SECONDS (3600). */
+  readonly windowSeconds?: number;
+  /** Memory cap. Default: 10000 jtis (per Fix-S6). LRU eviction when exceeded. */
+  readonly maxEntries?: number;
+  /**
+   * Wall-clock instant when cold-start posture lifts. While `now < coldStartUntilMs`,
+   * EVERY record() returns `{ fresh: false }` — paranoid mode for fresh deploys.
+   * Omit / undefined = no cold-start posture (default; accept the first
+   * observation of every jti).
+   */
+  readonly coldStartUntilMs?: number;
+}
+
 export const makeInMemoryJTIReplayTracker = (
-  windowSeconds: number = TOKEN_REPLAY_WINDOW_SECONDS,
+  configOrWindow: InMemoryJTIReplayTrackerConfig | number = {},
 ): JTIReplayTracker => {
+  // Legacy callsite compatibility: positional number is windowSeconds.
+  const config: InMemoryJTIReplayTrackerConfig =
+    typeof configOrWindow === "number" ? { windowSeconds: configOrWindow } : configOrWindow;
+  const windowMs = (config.windowSeconds ?? TOKEN_REPLAY_WINDOW_SECONDS) * 1000;
+  const maxEntries = config.maxEntries ?? 10_000;
+  const coldStartUntilMs = config.coldStartUntilMs;
   const seen = new Map<string, ReplayEntry>();
-  const windowMs = windowSeconds * 1000;
 
   const gc = (nowMs: number): void => {
     for (const [jti, entry] of seen) {
@@ -131,13 +220,29 @@ export const makeInMemoryJTIReplayTracker = (
     }
   };
 
+  const evictLRU = (): void => {
+    // Iteration over a JS Map yields keys in insertion order — the first
+    // key is the LRU. Evict one at a time so insertion-order semantics hold.
+    while (seen.size >= maxEntries) {
+      const oldest = seen.keys().next().value;
+      if (oldest === undefined) break;
+      seen.delete(oldest);
+    }
+  };
+
   return {
     record: (jti, nowMs) => {
+      // Cold-start posture: reject every jti until the window lifts.
+      if (coldStartUntilMs !== undefined && nowMs < coldStartUntilMs) {
+        return { fresh: false, first_seen_unix_ms: nowMs };
+      }
       gc(nowMs);
       const existing = seen.get(jti);
       if (existing !== undefined) {
         return { fresh: false, first_seen_unix_ms: existing.first_seen_unix_ms };
       }
+      // Enforce memory cap BEFORE inserting (Fix-S6 bounded LRU).
+      evictLRU();
       const entry: ReplayEntry = { jti, first_seen_unix_ms: nowMs };
       seen.set(jti, entry);
       return { fresh: true, first_seen_unix_ms: nowMs };

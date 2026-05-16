@@ -98,6 +98,33 @@ describe("cursor sign + verify pipeline (T2.14)", () => {
     expect(decoded.signature).toMatch(/^[a-f0-9]{128}$/);
   });
 
+  it("cursor signer uses JCS canonicalization — key order in payload doesn't affect signature (C5)", async () => {
+    // Forge two payloads with identical content but different field-insertion order.
+    // The JCS-based signer MUST treat them identically (RFC 8785).
+    const signer = makeInMemoryCursorSigner();
+    const fixedExp = toRFC("2026-06-16T00:00:00Z");
+    const p1 = {
+      world_scope: worldFoo,
+      caller_identity: callerA,
+      tool: "getProgress",
+      filters_hash: "a".repeat(64),
+      expires_at: fixedExp,
+      page_position: "page-1",
+    } as CursorPayload;
+    const p2 = {
+      // Reverse insertion order:
+      page_position: "page-1",
+      expires_at: fixedExp,
+      filters_hash: "a".repeat(64),
+      tool: "getProgress",
+      caller_identity: callerA,
+      world_scope: worldFoo,
+    } as CursorPayload;
+    const c1 = await Effect.runPromise(signCursor(p1, signer));
+    const c2 = await Effect.runPromise(signCursor(p2, signer));
+    expect(c1.signature).toBe(c2.signature);
+  });
+
   it("two different signers produce different signatures (secret-dependent)", async () => {
     const signerA = makeInMemoryCursorSigner({ secret: "secret-a" });
     const signerB = makeInMemoryCursorSigner({ secret: "secret-b" });

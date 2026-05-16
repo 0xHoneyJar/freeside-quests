@@ -14,6 +14,7 @@
 import { Data, Effect, Schema } from "effect";
 
 import {
+  canonicalizeJCS,
   Cursor,
   type CursorError,
   type CursorPayload,
@@ -44,17 +45,47 @@ export interface CursorSigner {
 }
 
 /**
- * Deterministic in-memory signer using SHA-256 over a canonical payload
- * encoding + a static "test-secret" key. NOT for production. Produces
- * the protocol's 128-hex-char shape so downstream Schema validation passes.
+ * Deterministic in-memory signer (TEST FIXTURE ONLY).
+ *
+ * Computes HMAC-SHA256 via Web Crypto (`crypto.subtle`) over the JCS-canonicalized
+ * cursor payload (RFC 8785 · matches the rest of the substrate's hashing
+ * discipline). The 256-bit HMAC tag (64 hex) is concatenated with a second
+ * HMAC tag keyed off `<secret>:round-2` to reach the protocol's 128-hex-char
+ * shape (which pins Ed25519's 512-bit signature length).
+ *
+ * **NOT cryptographically equivalent to Ed25519.** This is a deterministic
+ * keyed MAC sized to match the wire shape so Schema validation passes. The
+ * production swap-in is a real Ed25519 signer (probably ed25519-noble or
+ * Node's crypto.sign · invoked via the same CursorSigner interface).
+ *
+ * False-confidence warning: tests that depend on signature uniqueness, key
+ * unforgeability, or specific bit patterns SHOULD NOT rely on this signer.
+ * It exists so the cursor pipeline is testable end-to-end without standing
+ * up a real keypair.
  */
 export const makeInMemoryCursorSigner = (
   config: { readonly secret?: string } = {},
 ): CursorSigner => {
   const secret = config.secret ?? "in-memory-test-secret";
 
+  const hmacSha256 = async (key: string, message: string): Promise<Uint8Array> => {
+    const keyBytes = new TextEncoder().encode(key);
+    const cryptoKey = await crypto.subtle.importKey(
+      "raw",
+      keyBytes,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const sig = await crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(message));
+    return new Uint8Array(sig);
+  };
+
   const sign = async (payload: CursorPayload): Promise<string> => {
-    const canonical = JSON.stringify({
+    // RFC 8785 JCS — same canonicalization the rest of the substrate uses
+    // for event_id derivation, so cursor signatures stay portable across
+    // Node / Bun / Rust / Python implementations.
+    const canonical = canonicalizeJCS({
       world_scope: payload.world_scope,
       caller_identity: payload.caller_identity,
       tool: payload.tool,
@@ -62,19 +93,16 @@ export const makeInMemoryCursorSigner = (
       expires_at: payload.expires_at,
       page_position: payload.page_position,
     });
-    const message = `${secret}::${canonical}`;
-    const encoded = new TextEncoder().encode(message);
-    const hash = await crypto.subtle.digest("SHA-256", encoded);
-    // SHA-256 produces 32 bytes / 64 hex; protocol pins to 128 hex (Ed25519).
-    // Double-hash + concatenate to reach 128 hex chars for shape compliance.
-    const second = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${message}::round-2`));
-    const bytes1 = Array.from(new Uint8Array(hash))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-    const bytes2 = Array.from(new Uint8Array(second))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-    return bytes1 + bytes2;
+    const tagA = await hmacSha256(secret, canonical);
+    // Second tag keyed differently so the concatenated output isn't trivially
+    // a single HMAC value with a known suffix (matches the wire shape only —
+    // production Ed25519 swap-in replaces this entirely).
+    const tagB = await hmacSha256(`${secret}:round-2`, canonical);
+    const toHex = (bytes: Uint8Array): string =>
+      Array.from(bytes)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    return toHex(tagA) + toHex(tagB);
   };
 
   return {

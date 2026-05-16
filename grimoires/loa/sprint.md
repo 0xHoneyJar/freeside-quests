@@ -120,12 +120,13 @@ Land the in-memory adapter family + MCP tool surface + engine composition. After
 
 ### 3.3 · S2 verification criteria (sprint exit)
 
-- [ ] all 15 tasks T2.1 through T2.15 complete with green tests
-- [ ] adapter conformance suite green (event-store · reward-idempotency · identity-resolver · progress)
-- [ ] MCP manifest valid · 5 tool specs verified · gateway registration contract documented
-- [ ] D21+D22+D23+D24+D25 covered (auth + cursor + rate-limit + reward-idem + raffle-threshold)
-- [ ] golden replay test deterministic across 10 runs
-- [ ] grimoires/loa/NOTES.md updated with S2 close
+- [x] all 15 tasks T2.1 through T2.15 complete with green tests
+- [x] adapter conformance suite green (event-store · reward-idempotency · identity-resolver · progress) — factory-shaped suites at `packages/adapters/src/conformance/` · in-memory runner + postgres stubs
+- [x] MCP manifest valid · 5 tool specs verified · gateway registration contract documented — `packages/mcp-tools/manifest.json` + `validateMCPManifest`
+- [x] D21+D22+D23+D24+D25 covered (auth + cursor + rate-limit + reward-idem + raffle-threshold)
+- [x] golden replay test deterministic across 10 runs — `packages/engine/src/activities/__tests__/golden.test.ts`
+- [x] grimoires/loa/NOTES.md updated with S2 close
+- [x] sprint-2 review iteration complete — Fix-S4/S5/S6/S7 + IMP-005 addressed (engineer-feedback.md → fix cycle in this session)
 
 ### 3.4 · S2 estimated effort
 

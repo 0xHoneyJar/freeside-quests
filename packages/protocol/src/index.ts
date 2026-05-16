@@ -246,3 +246,21 @@ export {
   RewardGrantedPreimage,
   RewardPendingPreimage,
 } from "./preimage/index.js";
+
+// Auth port surfaces (S1.T1.16b + sprint-2 review C1/C2 — Fix-S4/Fix-S6/Fix-S7/IMP-005)
+export {
+  KeyExpired,
+  KeyProviderUnavailable,
+  KeyRevoked,
+  KeyRotationState,
+  KeyState,
+  KidNotFound,
+  ReplayStoreUnavailable,
+} from "./auth-ports/index.js";
+export type {
+  AuthReplayStore,
+  KeyProviderError,
+  KeyProviderPort,
+  RecordOutcome,
+  ReplayStoreError,
+} from "./auth-ports/index.js";

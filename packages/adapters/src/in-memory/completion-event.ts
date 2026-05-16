@@ -32,6 +32,8 @@ interface PartitionState {
   readonly events: EventEnvelope[];
   /** event_id Set for O(1) duplicate-reject (CL-EventStore-4) */
   readonly eventIds: Set<EventId>;
+  /** tip event_id → sequence number, for CASFailed payload reconstruction. */
+  readonly tipSequenceByEventId: Map<EventId, number>;
   /** current tip event_id (null = empty partition) */
   tip: EventId | null;
 }
@@ -116,6 +118,7 @@ export const makeInMemoryEventStore = (
       partition_key: pk,
       events: [],
       eventIds: new Set<EventId>(),
+      tipSequenceByEventId: new Map<EventId, number>(),
       tip: null,
     };
     partitions.set(key, fresh);
@@ -162,9 +165,16 @@ export const makeInMemoryEventStore = (
 
         // CL-EventStore-3 CAS check
         if (options.expected_tip_hash !== partition.tip) {
+          // Reconstruct expected_version from the caller's tip (or 0 if they
+          // claimed the partition was empty). actual_version is the current
+          // length. Together they let the caller decide retry semantics.
+          const expectedVersion =
+            options.expected_tip_hash === null
+              ? 0
+              : partition.tipSequenceByEventId.get(options.expected_tip_hash) ?? 0;
           return yield* Effect.fail(
             CASFailed.make({
-              expected_version: partition.events.length,
+              expected_version: expectedVersion,
               actual_version: partition.events.length,
             }),
           );
@@ -182,6 +192,7 @@ export const makeInMemoryEventStore = (
         partition.events.push(event);
         partition.eventIds.add(event.event_id);
         partition.tip = event.event_id;
+        partition.tipSequenceByEventId.set(event.event_id, partition.events.length);
         return {
           partition_key: partition.partition_key,
           tip_event_id: partition.tip,
@@ -212,9 +223,17 @@ export const makeInMemoryEventStore = (
       Effect.gen(function* () {
         const scopeErr = requireMatchingScope(partition);
         if (scopeErr !== null) return yield* Effect.fail(scopeErr);
+        // Reject negative after_sequence — silently coercing to "all events"
+        // hides off-by-one bugs from callers (C7 in sprint-2 review).
+        if (!Number.isInteger(after_sequence) || after_sequence < 0) {
+          return yield* Effect.fail({
+            _tag: "SchemaValidation" as const,
+            event_type: "EventStoreContract.read",
+            detail: `after_sequence must be a non-negative integer; got ${after_sequence}`,
+          });
+        }
         const state = partitions.get(partitionKeyToString(partition));
         if (state === undefined) return [] as ReadonlyArray<EventEnvelope>;
-        if (after_sequence < 0) return state.events.slice();
         return state.events.slice(after_sequence);
       }),
   };

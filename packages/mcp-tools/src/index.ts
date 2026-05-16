@@ -23,6 +23,7 @@ export {
 export {
   acceptAllSignatureVerifier,
   makeInMemoryJTIReplayTracker,
+  makeKeyProviderSignatureVerifier,
   PermissionDenied,
   ReplayDetected,
   TokenExpired,
@@ -32,12 +33,19 @@ export {
   validateBearerToken,
   WorldScopeDenied,
   type BearerTokenError,
+  type InMemoryJTIReplayTrackerConfig,
   type JTIReplayTracker,
   type SignatureVerifier,
   type ValidateInput,
   type ValidateSuccess,
   type ValidatorConfig,
 } from "./auth/bearer-token.js";
+
+// Auth — KeyProviderPort fixture (sprint-2 review C2 · IMP-005)
+export {
+  makeInMemoryKeyProvider,
+  type InMemoryKeyProviderConfig,
+} from "./auth/in-memory-key-provider.js";
 
 // Auth — rate limit
 export {

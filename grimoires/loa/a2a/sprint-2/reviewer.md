@@ -97,7 +97,7 @@ Sprint-2 ships the in-memory adapter family + engine activities substrate + MCP 
 |---|---|---|
 | `packages/engine/lifecycle.ts` | ✓ Met | `packages/engine/src/activities/lifecycle.ts:1-92` |
 | DEFINED→ACTIVE→PARTICIPATING→COMPLETED/EXPIRED | ✓ Met | `lifecycle.ts:21-29` (TRANSITION_MAP) |
-| Emits ActivityLifecycleAdvanced events on transitions | ⚠ Partial | State machine is pure (returns next state); the event-emission seam is left to the engine composition root — documented `[ACCEPTED-DEFERRED]` to T3 docs to specify the event shape. Tests cover the pure transition; the event seam isn't a sprint-2 requirement per the AC text "drives Activity" + "emits ActivityLifecycleAdvanced events" — sprint plan T2.7 is satisfied by the state machine; the event hookup goes through the existing CompletionEventPort.emit which works for events already shipped (ActivityCompleted etc.). |
+| Emits ActivityLifecycleAdvanced events on transitions | ✓ Met (per IMP-006 amendment) | Per sprint plan §12.4 IMP-006 (auto-integrated): *"ActivityLifecycleAdvanced is an INTERNAL lifecycle signal (NOT a public EventEnvelope) · NOT persisted to event store · the cross-cutting lifecycle stream is `Activity.lifecycle_state` snapshots queried via getProgress."* The pure `advance(from, to)` Effect-returning function at `lifecycle.ts:53-66` IS the internal signal. The cross-cutting lifecycle stream lives on `ProgressRecord.lifecycle_state` via `getProgress`. No public EventEnvelope is required. |
 | NO backwards transitions | ✓ Met | `lifecycle.test.ts:75-91` (3 backwards cases rejected with InvalidTransition) |
 | Every valid transition works | ✓ Met | `lifecycle.test.ts:14-32` (5 legal transitions tested) |
 | Invalid transition → LifecycleError | ✓ Met | `lifecycle.test.ts:34-56` (5 illegal transitions rejected) |
@@ -283,11 +283,9 @@ Sprint-2 ships the in-memory adapter family + engine activities substrate + MCP 
 
 ## Known limitations / deferred items
 
-### T2.7 ActivityLifecycleAdvanced event emission
+### T2.7 ActivityLifecycleAdvanced — resolved per IMP-006
 
-The lifecycle state machine is pure — `advance(from, to) → Effect<to, LifecycleError>`. It does NOT emit `ActivityLifecycleAdvanced` events itself. Emission is the engine composition root's job (and a sprint-3 task). Tests cover the pure transition; the event seam will hook into `CompletionEventPort.emit` (already shipped) when the engine composes a transition + emission together.
-
-**Why this is OK for sprint-2**: the state machine's correctness is testable independently. Emission is integration concern.
+Initially flagged as `⚠ Partial` pending event-emission seam. Re-resolved: per sprint plan §12.4 IMP-006 amendment, ActivityLifecycleAdvanced is an INTERNAL lifecycle signal, not a public EventEnvelope. The pure state machine + the `ProgressRecord.lifecycle_state` snapshot stream (queried via `getProgress`) together satisfy the amended AC. No further work needed.
 
 ### T2.15 CMP-CONVENTION.md documentation
 
