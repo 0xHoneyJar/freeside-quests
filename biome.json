@@ -1,0 +1,69 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "packages/protocol/src/branded/**/*.ts",
+      "packages/protocol/src/activity/**/*.ts",
+      "packages/protocol/src/events/**/*.ts",
+      "packages/protocol/src/preimage/**/*.ts",
+      "packages/protocol/src/encoding/**/*.ts",
+      "packages/protocol/src/golden-vectors/**/*.ts",
+      "packages/protocol/src/ports/**/*.ts",
+      "packages/protocol/src/auth/**/*.ts",
+      "packages/ports/src/**/*.ts",
+      "packages/adapters/src/in-memory/**/*.ts",
+      "packages/mcp-tools/src/**/*.ts",
+      "packages/engine/src/compose.ts",
+      "packages/engine/src/lifecycle.ts",
+      "packages/engine/src/retry.ts",
+      "packages/**/tests/**/*.ts",
+      "biome.json",
+      "vitest.config.ts",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/build",
+      "!**/.run",
+      "!**/.beads",
+      "!**/.claude",
+      "!**/grimoires"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "always"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": {
+        "noExplicitAny": "warn"
+      },
+      "style": {
+        "useImportType": "warn",
+        "useExportType": "warn"
+      },
+      "correctness": {
+        "noUnusedVariables": "warn",
+        "noUnusedImports": "warn"
+      }
+    }
+  }
+}

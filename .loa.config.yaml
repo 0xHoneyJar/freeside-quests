@@ -1,0 +1,229 @@
+# Loa Framework Configuration (Submodule Mode)
+# This file is yours to customize - framework updates will never modify it
+
+# Installation mode (DO NOT CHANGE - use mount-loa.sh to switch to standard)
+installation_mode: submodule
+
+# Submodule settings
+submodule:
+  path: .loa
+  # ref: main  # Uncomment to track specific ref
+
+# =============================================================================
+# Persistence Mode
+# =============================================================================
+persistence_mode: standard
+
+# =============================================================================
+# Integrity Enforcement
+# =============================================================================
+# Note: Submodule mode uses git submodule integrity instead of checksums
+integrity_enforcement: warn
+
+# =============================================================================
+# Agent Configuration
+# =============================================================================
+disabled_agents: []
+
+# =============================================================================
+# Structured Memory
+# =============================================================================
+memory:
+  notes_file: grimoires/loa/NOTES.md
+  trajectory_dir: grimoires/loa/a2a/trajectory
+  trajectory_retention_days: 30
+
+# =============================================================================
+# Context Hygiene
+# =============================================================================
+compaction:
+  enabled: true
+  threshold: 5
+
+# =============================================================================
+# Integrations
+# =============================================================================
+integrations:
+  - github
+
+# =============================================================================
+# Simstim Workflow (HITL chained planning → PRD → SDD → Sprint → Impl)
+# Enabled 2026-05-15 for acvp-modules-genesis cycle
+# =============================================================================
+simstim:
+  enabled: true
+  # Phase 3.5 (Bridgebuilder SDD design review) — off until first cycle ships
+  bridgebuilder_design_review: false
+  # Phase 6.5 (beads-loop) — off until task-graph is stable
+  flatline:
+    beads_loop: false
+
+# =============================================================================
+# GPT Review (cross-model adversarial review via codex CLI)
+# Imported from bonfire 2026-05-15 for acvp-modules-genesis cycle
+# =============================================================================
+gpt_review:
+  enabled: true
+  models:
+    documents: gpt-5.4
+    code: gpt-5.4
+
+# =============================================================================
+# Flatline Protocol — Multi-model adversarial review
+# Headless-direct routing (cheval) · no API quota burn · subscription-auth
+# =============================================================================
+flatline_protocol:
+  enabled: true
+  models:
+    primary: claude-opus-4-8       # hounfour.aliases → claude-headless:claude-opus-4-7
+    secondary: gpt-5.4-codex       # hounfour.aliases → codex-headless:gpt-5.5
+  max_iterations: 5
+  knowledge:
+    notebooklm:
+      enabled: false
+
+# =============================================================================
+# Hounfour — Provider registry + flatline routing + headless adapters
+# =============================================================================
+hounfour:
+  flatline_tertiary_model: gemini-3.0-pro
+  flatline_routing: true
+  aliases:
+    reviewer: codex-headless:gpt-5.5
+    reasoning: codex-headless:gpt-5.5
+    deep-thinker: gemini-headless:gemini-3.1-pro-preview
+    claude-opus-4-8: claude-headless:claude-opus-4-7
+    gpt-5.4-codex: codex-headless:gpt-5.5
+    gemini-3.0-pro: gemini-headless:gemini-3.1-pro-preview
+  providers:
+    codex-headless:
+      type: codex-headless
+      read_timeout: 600.0
+      models:
+        gpt-5.5:
+          capabilities: [chat, code]
+          context_window: 400000
+          token_param: max_completion_tokens
+          pricing:
+            input_per_mtok: 0
+            output_per_mtok: 0
+          extra:
+            reasoning_effort: high
+    claude-headless:
+      type: claude-headless
+      read_timeout: 600.0
+      models:
+        claude-opus-4-7:
+          capabilities: [chat, tools, function_calling, thinking_traces]
+          context_window: 200000
+          pricing:
+            input_per_mtok: 0
+            output_per_mtok: 0
+          extra:
+            effort: high
+        claude-sonnet-4-6:
+          capabilities: [chat, tools, function_calling]
+          context_window: 200000
+          pricing:
+            input_per_mtok: 0
+            output_per_mtok: 0
+    gemini-headless:
+      type: gemini-headless
+      read_timeout: 600.0
+      models:
+        gemini-3.1-pro-preview:
+          capabilities: [chat, thinking_traces]
+          context_window: 1048576
+          pricing:
+            input_per_mtok: 0
+            output_per_mtok: 0
+
+# =============================================================================
+# Interview — Minimal mode (kickoff already did discovery legwork)
+# =============================================================================
+interview:
+  mode: minimal
+  pacing: batch
+  phase_gates:
+    between_phases: false
+    before_generation: false
+  backpressure:
+    no_infer: false
+    show_work: true
+    min_confirmation_questions: 0
+
+# =============================================================================
+# Run Mode — Autonomous sprint execution (Phase 7 dispatch)
+# =============================================================================
+run_mode:
+  enabled: true
+  defaults:
+    max_cycles: 20
+    timeout_hours: 8
+  rate_limiting:
+    calls_per_hour: 100
+  circuit_breaker:
+    same_issue_threshold: 3
+    no_progress_threshold: 5
+  git:
+    branch_prefix: "feat/"
+    create_draft_pr: true
+    auto_push: false  # HITL · operator approves push before PR
+
+# =============================================================================
+# Run Bridge — Iterative Bridgebuilder review loop (optional Phase 7 wrap)
+# =============================================================================
+run_bridge:
+  enabled: true
+  defaults:
+    depth: 3
+    per_sprint: false
+    flatline_threshold: 0.05
+    consecutive_flatline: 2
+  timeouts:
+    per_iteration_hours: 4
+    total_hours: 24
+  github_trail:
+    post_comments: true
+    update_pr_body: true
+  ground_truth:
+    enabled: true
+  vision_registry:
+    enabled: true
+    auto_capture: true
+    bridge_auto_capture: true
+  rtfm:
+    enabled: true
+    max_fix_iterations: 1
+  lore:
+    enabled: true
+    categories:
+      - acvp
+      - freeside-modules
+  bridgebuilder:
+    persona_path: .claude/data/bridgebuilder-persona.md
+
+# =============================================================================
+# Post-PR Validation
+# =============================================================================
+post_pr_validation:
+  enabled: true
+  phases:
+    audit:
+      enabled: true
+      max_iterations: 5
+      min_severity: "medium"
+    context_clear:
+      enabled: true
+      write_checkpoint: true
+    e2e:
+      enabled: true
+      max_iterations: 3
+    flatline:
+      enabled: true
+      mode: "hitl"
+    bridgebuilder_review:
+      enabled: true
+  auto_invoke:
+    enabled: true
+    mode: "autonomous"

@@ -83,3 +83,184 @@ export {
   NotImplementedError,
 } from "./errors.js";
 export type { QuestEngineError } from "./errors.js";
+
+// ---------------------------------------------------------------------------
+// acvp-modules-genesis · Sprint 1 (2026-05-15)
+// Activity substrate branded types (SDD §5.2 + §3.1)
+// ---------------------------------------------------------------------------
+
+export {
+  ActivityId,
+  CycleId,
+  EventId,
+  IdentityId,
+  ISOWeek,
+  MintIntentId,
+  PartitionKey,
+  PartitionScope,
+  PartnerId,
+  PeriodKey,
+  SnapshotId,
+  StepId,
+  WorldDefinedKey,
+  WorldId,
+} from "./branded/index.js";
+
+// Activity substrate (FR-1 + FR-2 + FR-3 · cycle acvp-modules-genesis · sprint-1)
+export {
+  Activity,
+  ActivityKind,
+  ActivityLifecycleState,
+  ActivityReward,
+  ActivityStep,
+  OnChainVmKind,
+  RESERVED_KIND_PREFIXES,
+  StepCompletion,
+  VerificationManualCurator,
+  VerificationMerkleProof,
+  VerificationMethod,
+  VerificationOnChainEvent,
+  VerificationPartnerApi,
+  VerificationSignedMemoTx,
+  VerificationWebhookHmac,
+  WorldDefinedKindId,
+  WorldSubSchemaId,
+} from "./activity/index.js";
+
+// Canonical encoding helpers (T1.12 · D14 · §5.3 + §5.8)
+export {
+  bigintFromDecimal,
+  bigintToDecimal,
+  canonicalizeJCS,
+  dateFromRFC3339,
+  dateToRFC3339,
+  DecimalValue,
+  RFC3339Date,
+  sha256JCS,
+} from "./encoding/index.js";
+
+// ActivityReward + RewardState (T1.6 · FR-4 · CL-Reward-1..3)
+export {
+  ActivityRewardBadgeMint,
+  ActivityRewardCosmetic,
+  ActivityRewardExternal,
+  ActivityRewardNone,
+  ActivityRewardResource,
+  ActivityRewardTokenAmount,
+  RewardFailed,
+  RewardGranted,
+  RewardPending,
+  RewardState,
+} from "./activity/index.js";
+
+// Forward-compat reward branded types
+export { CosmeticId, TokenId } from "./branded/index.js";
+
+// Typed ports + ProgressRecord + EventStoreContract (T1.13 + T1.14 + T1.15 · FR-8 + FR-11)
+export {
+  AppendOptions,
+  ChainAddress,
+  EventFilter,
+  IdentityChainNotSupported,
+  IdentityResolverError,
+  IdentityResolverUnavailable,
+  IdentityUnresolvableIdentity,
+  ProgressActivityNotFound,
+  ProgressAdapterUnavailable,
+  ProgressConcurrentUpdate,
+  ProgressError,
+  ProgressIdentityNotFound,
+  ProgressLifecycleState,
+  ProgressRecord,
+  RewardAdapterUnavailable,
+  RewardAlreadyGranted,
+  RewardError,
+  RewardGrantFailed,
+  RewardIdentityUnresolvable,
+  TipDescriptor,
+} from "./ports/index.js";
+export type {
+  CompletionEventPort,
+  EventStoreContract,
+  IdentityResolverPort,
+  ProgressPort,
+  RewardPort,
+} from "./ports/index.js";
+
+// Auth + pagination (T1.16 + T1.17 + T1.18 + T1.19 · Fix-A3/A4 + D22/D26)
+export {
+  AuditPermission,
+  Cursor,
+  CursorError,
+  CursorPayload,
+  ExpiredCursor,
+  InvalidCursor,
+  MCPBearerToken,
+  MCPToolPermission,
+  paginatedResponse,
+  TOKEN_KEY_DISCOVERY_ENDPOINT,
+  TOKEN_REPLAY_WINDOW_SECONDS,
+  TOKEN_SKEW_TOLERANCE_SECONDS,
+  WORLD_PAYLOAD_MAX_BYTES,
+  WORLD_PAYLOAD_MAX_DEPTH,
+  WorldDefinedPayload,
+  WorldScope,
+  WorldScopeAudit,
+  WorldScopeMulti,
+  WorldScopeSingle,
+} from "./auth/index.js";
+
+// Event-stream schemas + EventError + computeEventId (T1.7 + T1.9 + T1.10 · FR-5 + Fix-A1/A2)
+export {
+  ActivityCompleted,
+  BadgeIssued,
+  CanonicalizationFailed,
+  CASFailed,
+  computeEventId,
+  computeEventIdSync,
+  DuplicateEvent,
+  EventEnvelope,
+  EventError,
+  eventEnvelopeFields,
+  isMutatingEvent,
+  NonceCollision,
+  NonceRequired,
+  PartitionScopeMismatch,
+  ProgressAdvanced,
+  RaffleDrawn,
+  RewardFailedEvent,
+  RewardGrantedEvent,
+  RewardPendingEvent,
+  SchemaValidation,
+} from "./events/index.js";
+
+// Canonical preimage schemas (T1.8 · §5.6 · per CL-Event-3)
+export {
+  ActivityCompletedPreimage,
+  BadgeIssuedPreimage,
+  PreimageEnvelope,
+  preimageEnvelopeFields,
+  ProgressAdvancedPreimage,
+  RaffleDrawnPreimage,
+  RewardFailedPreimage,
+  RewardGrantedPreimage,
+  RewardPendingPreimage,
+} from "./preimage/index.js";
+
+// Auth port surfaces (S1.T1.16b + sprint-2 review C1/C2 — Fix-S4/Fix-S6/Fix-S7/IMP-005)
+export {
+  KeyExpired,
+  KeyProviderUnavailable,
+  KeyRevoked,
+  KeyRotationState,
+  KeyState,
+  KidNotFound,
+  ReplayStoreUnavailable,
+} from "./auth-ports/index.js";
+export type {
+  AuthReplayStore,
+  KeyProviderError,
+  KeyProviderPort,
+  RecordOutcome,
+  ReplayStoreError,
+} from "./auth-ports/index.js";

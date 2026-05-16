@@ -1,0 +1,80 @@
+{
+  "version": "1.0.0",
+  "next_sprint_number": 4,
+  "active_cycle": "acvp-modules-genesis",
+  "active_sprint": null,
+  "paused_cycles": [],
+  "completed_cycles": [],
+  "cycles": [
+    {
+      "id": "acvp-modules-genesis",
+      "label": "ACVP Modules Genesis · freeside-activities (unified Activity protocol)",
+      "status": "active",
+      "created_at": "2026-05-15T18:00:00Z",
+      "kickoff": "../bonfire/grimoires/bonfire/specs/acvp-modules-genesis-kickoff-2026-05-15.md",
+      "prd": "grimoires/loa/prd.md",
+      "sdd": "grimoires/loa/sdd.md",
+      "sprint_plan": "grimoires/loa/sprint.md",
+      "simstim_id": "simstim-20260515-6a20a74b",
+      "branch": "feat/acvp-modules-genesis",
+      "flatline_rounds_banked": [
+        {
+          "phase": "prd",
+          "ran_at": "2026-05-16T01:10:39Z",
+          "models": ["claude-opus-4-7", "gpt-5.5", "gemini-3.1-pro-preview"],
+          "findings": {"high_consensus": 7, "disputed": 6, "blockers": 12},
+          "blockers_resolved_in_doc": 4,
+          "blockers_deferred": 8
+        },
+        {
+          "phase": "sdd",
+          "ran_at": "2026-05-16T01:30:00Z",
+          "models": ["claude-opus-4-7", "gpt-5.5", "gemini-3.1-pro-preview"],
+          "findings": {"high_consensus": 6, "disputed": 8, "blockers": 12},
+          "blockers_resolved_in_doc": 4,
+          "blockers_deferred": 8
+        },
+        {
+          "phase": "sprint",
+          "ran_at": "2026-05-16T01:42:00Z",
+          "models": ["claude-opus-4-7", "gpt-5.5", "gemini-3.1-pro-preview"],
+          "findings": {"high_consensus": 6, "disputed": 5, "blockers": 8},
+          "blockers_resolved_in_doc": 1,
+          "blockers_deferred": 7
+        }
+      ],
+      "sprints": [
+        {
+          "id": "sprint-1",
+          "local_label": "sprint-1",
+          "number": 1,
+          "theme": "protocol + ports + canonical preimage",
+          "status": "planned",
+          "task_count_target": 22,
+          "deferred_critical_items": ["D21", "D22", "D26"],
+          "fixes_baked_in": ["Fix-A1 nonce policy", "Fix-A2 Effect.gen syntax", "Fix-A3 bearer token spec", "Fix-A4 RBAC scope", "Fix-S2 evaluateScope", "Fix-S3 byte-length validator", "Fix-S4 KeyProviderPort"]
+        },
+        {
+          "id": "sprint-2",
+          "local_label": "sprint-2",
+          "number": 2,
+          "theme": "adapters + MCP + engine",
+          "status": "planned",
+          "task_count_target": 17,
+          "deferred_critical_items": ["D23", "D24", "D25"],
+          "fixes_baked_in": ["Fix-S1 no silent adapter fallback", "Fix-S5 RewardPort atomicity contract", "Fix-S6 jti replay tracker eviction", "Fix-S7 AuthReplayStore + KeySetProvider interfaces"]
+        },
+        {
+          "id": "sprint-3",
+          "local_label": "sprint-3",
+          "number": 3,
+          "theme": "docs + conformance + publish-ready",
+          "status": "planned",
+          "task_count_target": 13,
+          "deferred_critical_items": [],
+          "fixes_baked_in": ["IMP-004 cubquests snapshot scheduled to early-S1 (T1.0)"]
+        }
+      ]
+    }
+  ]
+}

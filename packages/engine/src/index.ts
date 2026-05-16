@@ -110,3 +110,10 @@ export {
   SubmissionStyle,
   defaultEngineConfig,
 } from "./config.js";
+
+// ---------------------------------------------------------------------------
+// acvp-modules-genesis · sprint-2 (2026-05-16)
+// Activity substrate engine surface (SDD §3.5)
+// ---------------------------------------------------------------------------
+
+export * from "./activities/index.js";

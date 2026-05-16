@@ -1,0 +1,22 @@
+sprint-2 · acvp-modules-genesis · COMPLETED 2026-05-16
+
+Implementation:  15/15 tasks · 137 new tests · 648 workspace tests green
+Review:          APPROVED with concerns (round 2 · all 9 blockers resolved)
+Audit:           APPROVED - LETS FUCKING GO (0 CRIT · 0 HIGH · 0 MED · 3 LOW)
+Risk:            LOW
+
+Commits:
+  d6b5e8e  T2.1-T2.5 in-memory adapter family
+  e16ef92  T2.6-T2.9 engine activities substrate
+  052fc87  T2.10-T2.15 MCP tool surface
+  54ccfa1  implementation reviewer.md
+  9383c8d  senior lead review (CHANGES REQUIRED)
+  bcb1d0e  round-2 fix · all 9 blockers addressed
+
+PR:  https://github.com/0xHoneyJar/freeside-activities/pull/16
+
+Carryovers:
+  - sprint-1 MED-001 (EventEnvelope strict-preimage hardening) — deferred
+  - sprint-2 LOW-001..003 (cold-start docs · JWKS-refresh port · rate-limit caller cap) — sprint-3 polish
+
+Next gate:  sprint-3 (docs + cross-runtime conformance + publish-readiness · 13 tasks)

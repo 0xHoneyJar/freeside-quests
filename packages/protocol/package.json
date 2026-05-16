@@ -43,10 +43,14 @@
     "effect"
   ],
   "peerDependencies": {
-    "effect": "^3.10.0"
+    "effect": "^3.12.0"
   },
   "devDependencies": {
-    "effect": "^3.10.0",
-    "typescript": "^5.7.0"
+    "effect": "^3.12.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "dependencies": {
+    "canonicalize": "^2.0.0"
   }
 }

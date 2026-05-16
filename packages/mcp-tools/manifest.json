@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schemas.freeside.thj/mcp-manifest/v1.0.0",
+  "name": "@0xhoneyjar/freeside-activities-mcp-tools",
+  "version": "0.1.0",
+  "description": "Read-only MCP tool surface for the activities substrate. Five tools cover the agent-facing query plane defined in FR-9.",
+  "transport": "stdio",
+  "auth": {
+    "scheme": "bearer-token",
+    "discovery": "https://schemas.freeside.thj/mcp-token-key-discovery/v1.0.0"
+  },
+  "tools": [
+    {
+      "name": "get-active-activities",
+      "spec": "./tools/get-active-activities.json",
+      "description": "List ACTIVE activities visible to the caller's world scope.",
+      "read_only": true
+    },
+    {
+      "name": "get-progress",
+      "spec": "./tools/get-progress.json",
+      "description": "Read the ProgressRecord for a (activity, identity) pair.",
+      "read_only": true
+    },
+    {
+      "name": "get-badges",
+      "spec": "./tools/get-badges.json",
+      "description": "List BadgeIssued events for an identity, optionally scoped to a family.",
+      "read_only": true
+    },
+    {
+      "name": "get-raffle-entries",
+      "spec": "./tools/get-raffle-entries.json",
+      "description": "List RaffleEntry events for a cycle, optionally scoped to an identity.",
+      "read_only": true
+    },
+    {
+      "name": "list-kinds",
+      "spec": "./tools/list-kinds.json",
+      "description": "List ActivityKind discriminants registered in the substrate.",
+      "read_only": true
+    }
+  ]
+}

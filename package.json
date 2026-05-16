@@ -1,12 +1,12 @@
 {
-  "name": "freeside-quests",
+  "name": "freeside-activities",
   "version": "0.1.0",
   "private": true,
-  "description": "Keeper of quest schemas — quest defs, completion criteria, badge + raffle shapes, IQuestEngine port, MCP tool specs, headless engine library, shared UI components. The freeside-* attachment module that worlds + ruggy + cubquests-dashboard impl consume.",
+  "description": "Activity substrate for freeside-* modules — sealed Effect.Schema protocol (Activity, ActivityKind, ActivityReward, EventEnvelope, computeEventId), typed ports (Progress, CompletionEvent, Reward, IdentityResolver), in-memory adapters, read-only MCP tools, headless engine. Cycle: acvp-modules-genesis.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/0xHoneyJar/freeside-quests.git"
+    "url": "https://github.com/0xHoneyJar/freeside-activities.git"
   },
   "workspaces": [
     "packages/protocol",
@@ -17,8 +17,21 @@
     "packages/ui",
     "packages/discord-renderer"
   ],
+  "scripts": {
+    "build": "bun run --filter '*' build",
+    "typecheck": "bun run --filter '*' typecheck",
+    "lint": "biome check .",
+    "lint:fix": "biome check . --write",
+    "format": "biome format . --write",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
   "devDependencies": {
+    "@biomejs/biome": "^2.0.0",
     "@types/bun": "latest",
-    "typescript": "^5.7.0"
+    "@vitest/coverage-v8": "^3.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
   }
 }
