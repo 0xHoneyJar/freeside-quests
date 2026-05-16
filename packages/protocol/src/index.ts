@@ -83,3 +83,21 @@ export {
   NotImplementedError,
 } from "./errors.js";
 export type { QuestEngineError } from "./errors.js";
+
+// ---------------------------------------------------------------------------
+// acvp-modules-genesis · Sprint 1 (2026-05-15)
+// Activity substrate branded types (SDD §5.2 + §3.1)
+// ---------------------------------------------------------------------------
+
+export {
+  ActivityId,
+  CycleId,
+  EventId,
+  IdentityId,
+  MintIntentId,
+  PartitionKey,
+  PartitionScope,
+  SnapshotId,
+  StepId,
+  WorldId,
+} from "./branded/index.js";
