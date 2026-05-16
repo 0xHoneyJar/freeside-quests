@@ -20,7 +20,11 @@
     "outDir": "dist",
     "rootDir": "src",
     "composite": true,
-    "types": ["vitest/globals", "node"]
+    "types": ["vitest/globals", "node"],
+    "paths": {
+      "@0xhoneyjar/freeside-activities-adapters": ["../adapters/src/index.ts"]
+    }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "references": [{ "path": "../adapters" }]
 }

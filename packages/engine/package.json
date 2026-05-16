@@ -45,7 +45,8 @@
     "state-machine"
   ],
   "dependencies": {
-    "@0xhoneyjar/quests-protocol": "^0.1.2"
+    "@0xhoneyjar/quests-protocol": "^0.1.2",
+    "@0xhoneyjar/freeside-activities-adapters": "workspace:*"
   },
   "peerDependencies": {
     "effect": "^3.10.0",

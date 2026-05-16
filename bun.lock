@@ -49,6 +49,7 @@
       "name": "@0xhoneyjar/quests-engine",
       "version": "0.1.2",
       "dependencies": {
+        "@0xhoneyjar/freeside-activities-adapters": "workspace:*",
         "@0xhoneyjar/quests-protocol": "^0.1.2",
       },
       "devDependencies": {
