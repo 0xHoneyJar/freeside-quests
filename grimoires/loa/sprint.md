@@ -75,15 +75,15 @@ Land the sealed-schema substrate. After S1: an agent or world can import `@0xhon
 
 ### 2.3 · S1 verification criteria (sprint exit)
 
-- [ ] all 20 tasks T1.1 through T1.20 complete with green tests
-- [ ] `bun test --filter @0xhoneyjar/freeside-activities/protocol` 100% green
-- [ ] golden-vectors test asserts cross-runtime determinism for all 7 event types
-- [ ] compass-roundtrip + cubquests-roundtrip conformance tests green
-- [ ] Effect.Schema strict-mode enforced (no extra fields silently accepted)
-- [ ] no bare `await` inside Effect.gen (validated by lint rule + tests)
-- [ ] computeEventId is pure-deterministic across 100 invocations of same event
-- [ ] D21+D22+D26 covered (bearer token + cursor + WorldDefined limits)
-- [ ] grimoires/loa/NOTES.md updated with S1 close · friction templates filed
+- [x] all 20 tasks T1.1 through T1.20 complete with green tests (475/475 at cycle-7 close)
+- [⏸] `bun test --filter @0xhoneyjar/freeside-activities/protocol` 100% green — ACCEPTED-DEFERRED, package rename in S3 T3.12
+- [x] golden-vectors test asserts cross-runtime determinism for all 7 event types (T1.11 · 21 fixtures · 86 assertions)
+- [⏸] compass-roundtrip + cubquests-roundtrip conformance tests green — ACCEPTED-DEFERRED, full conformance in S3 T3.9 + T3.10 (protocol-layer placeholders shipped)
+- [⏸] Effect.Schema strict-mode enforced (no extra fields silently accepted) — ACCEPTED-DEFERRED, Effect 3.x framework limitation, sealed-union discipline via `_tag` enforced instead, Decision Log NOTES.md
+- [x] no bare `await` inside Effect.gen (validated by lint rule + tests)
+- [x] computeEventId is pure-deterministic across 100 invocations of same event (events.test.ts:274-288)
+- [x] D21+D22+D26 covered (bearer token + cursor + WorldDefined limits)
+- [x] grimoires/loa/NOTES.md updated with S1 close · friction templates filed
 
 ### 2.4 · S1 estimated effort
 
