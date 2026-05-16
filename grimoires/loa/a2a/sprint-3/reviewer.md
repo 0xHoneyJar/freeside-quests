@@ -11,7 +11,7 @@
 
 Sprint-3 closes the cycle by replacing legacy `freeside-quests`-era scaffolding with post-rename canonical documentation, proving cross-runtime conformance for compass + cubquests, and certifying npm publish-readiness for all 4 published packages.
 
-- **Tasks complete**: 13/13 (per sprint plan + IMP-012 + IMP-006 amendments)
+- **Tasks complete**: 13/13 (per sprint plan + IMP-012 + IMP-006 amendments · T3.13 / S1.T1.0 cubquests-snapshot landed in sprint-3 round-2 fix)
 - **Doc files rewritten**: 4 (INTENT · EXTRACTION-MAP · INTEGRATION-PATH · CLAUDE.md)
 - **Doc files authored fresh**: 3 (ACVP-MATRIX · CMP-CONVENTION · VERSIONING)
 - **Vault doctrine candidates**: 3 (activity-as-protocol · merkle-snapshot-claim-pattern · weighted-raffle-draw-pattern) written to `grimoires/loa/proposals/` for operator promotion

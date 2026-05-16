@@ -161,14 +161,14 @@ Land the documentation surface + cross-runtime conformance tests + publish-readi
 
 ### 4.3 · S3 verification criteria (sprint exit)
 
-- [ ] all 13 tasks T3.1 through T3.13 complete
-- [ ] 5 doc files rewritten (INTENT · EXTRACTION-MAP · INTEGRATION-PATH · ACVP-MATRIX · CMP-CONVENTION)
-- [ ] 3 vault doctrine candidates authored (activity-as-protocol · merkle-snapshot-claim-pattern · weighted-raffle-draw-pattern)
-- [ ] cubquests-roundtrip + compass-roundtrip cross-runtime conformance tests green
-- [ ] CLAUDE.md rewritten
-- [ ] npm publish-readiness verified (NO actual publish)
-- [ ] grimoires/loa/NOTES.md updated with S3 close
-- [ ] cycle ready for /audit-sprint + /ship
+- [x] all 13 tasks T3.1 through T3.13 complete (T3.13 landed in round-2 fix at `grimoires/loa/reality/cubquests-snapshot-2026-05-15/`)
+- [x] 5 doc files rewritten (INTENT · EXTRACTION-MAP · INTEGRATION-PATH · ACVP-MATRIX · CMP-CONVENTION)
+- [x] 3 vault doctrine candidates authored (activity-as-protocol · merkle-snapshot-claim-pattern · weighted-raffle-draw-pattern · all at `grimoires/loa/proposals/`)
+- [x] cubquests-roundtrip + compass-roundtrip cross-runtime conformance tests green (19 tests · 8 compass + 11 cubquests)
+- [x] CLAUDE.md rewritten
+- [x] npm publish-readiness verified (NO actual publish · all 4 packages dry-run clean · see `grimoires/loa/a2a/sprint-3/publish-readiness.md`)
+- [x] grimoires/loa/NOTES.md updated with S3 close
+- [x] cycle ready for /audit-sprint + /ship
 
 ### 4.4 · S3 estimated effort
 
