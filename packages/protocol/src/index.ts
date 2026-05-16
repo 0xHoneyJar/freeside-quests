@@ -94,10 +94,25 @@ export {
   CycleId,
   EventId,
   IdentityId,
+  ISOWeek,
   MintIntentId,
   PartitionKey,
   PartitionScope,
+  PeriodKey,
   SnapshotId,
   StepId,
+  WorldDefinedKey,
   WorldId,
 } from "./branded/index.js";
+
+// Activity substrate (FR-1 + FR-2 · cycle acvp-modules-genesis · sprint-1 · cycle 2)
+export {
+  Activity,
+  ActivityKind,
+  ActivityLifecycleState,
+  ActivityReward,
+  ActivityStep,
+  RESERVED_KIND_PREFIXES,
+  WorldDefinedKindId,
+  WorldSubSchemaId,
+} from "./activity/index.js";
