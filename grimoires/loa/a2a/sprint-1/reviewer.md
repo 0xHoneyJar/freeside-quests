@@ -4,11 +4,11 @@ type: implementation-report
 cycle: acvp-modules-genesis
 sprint: sprint-1
 sprint_global_id: bd-2wa
-cycle_count: 3
+cycle_count: 4
 simstim_id: simstim-20260515-6a20a74b
 plan_id: plan-20260515-6a20a74b
-tasks_completed: [T1.1, T1.2, T1.3, T1.4, T1.5, T1.12]
-tasks_remaining: [T1.6, T1.7, T1.8, T1.9, T1.10, T1.11, T1.13, T1.14, T1.15, T1.16, T1.17, T1.18, T1.19, T1.20]
+tasks_completed: [T1.1, T1.2, T1.3, T1.4, T1.5, T1.6, T1.7, T1.9, T1.10, T1.12]
+tasks_remaining: [T1.8, T1.11, T1.13, T1.14, T1.15, T1.16, T1.17, T1.18, T1.19, T1.20]
 ---
 
 # Sprint 1 · Implementation Report (in progress · cycles 1–3)

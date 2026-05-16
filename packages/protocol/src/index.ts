@@ -138,3 +138,44 @@ export {
   RFC3339Date,
   sha256JCS,
 } from "./encoding/index.js";
+
+// ActivityReward + RewardState (T1.6 · FR-4 · CL-Reward-1..3)
+export {
+  ActivityRewardBadgeMint,
+  ActivityRewardCosmetic,
+  ActivityRewardExternal,
+  ActivityRewardNone,
+  ActivityRewardResource,
+  ActivityRewardTokenAmount,
+  RewardFailed,
+  RewardGranted,
+  RewardPending,
+  RewardState,
+} from "./activity/index.js";
+
+// Forward-compat reward branded types
+export { CosmeticId, TokenId } from "./branded/index.js";
+
+// Event-stream schemas + EventError + computeEventId (T1.7 + T1.9 + T1.10 · FR-5 + Fix-A1/A2)
+export {
+  ActivityCompleted,
+  BadgeIssued,
+  CanonicalizationFailed,
+  CASFailed,
+  computeEventId,
+  computeEventIdSync,
+  DuplicateEvent,
+  EventEnvelope,
+  EventError,
+  eventEnvelopeFields,
+  isMutatingEvent,
+  NonceCollision,
+  NonceRequired,
+  PartitionScopeMismatch,
+  ProgressAdvanced,
+  RaffleDrawn,
+  RewardFailedEvent,
+  RewardGrantedEvent,
+  RewardPendingEvent,
+  SchemaValidation,
+} from "./events/index.js";

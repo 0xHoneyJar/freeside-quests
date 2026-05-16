@@ -24,7 +24,19 @@ export {
   WorldDefinedKindId,
   WorldSubSchemaId,
 } from "./ActivityKind.js";
-export { ActivityReward } from "./ActivityReward.js";
+export {
+  ActivityReward,
+  ActivityRewardBadgeMint,
+  ActivityRewardCosmetic,
+  ActivityRewardExternal,
+  ActivityRewardNone,
+  ActivityRewardResource,
+  ActivityRewardTokenAmount,
+  RewardFailed,
+  RewardGranted,
+  RewardPending,
+  RewardState,
+} from "./ActivityReward.js";
 export {
   ActivityStep,
   OnChainVmKind,
