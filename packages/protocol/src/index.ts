@@ -233,3 +233,16 @@ export {
   RewardPendingEvent,
   SchemaValidation,
 } from "./events/index.js";
+
+// Canonical preimage schemas (T1.8 · §5.6 · per CL-Event-3)
+export {
+  ActivityCompletedPreimage,
+  BadgeIssuedPreimage,
+  PreimageEnvelope,
+  preimageEnvelopeFields,
+  ProgressAdvancedPreimage,
+  RaffleDrawnPreimage,
+  RewardFailedPreimage,
+  RewardGrantedPreimage,
+  RewardPendingPreimage,
+} from "./preimage/index.js";

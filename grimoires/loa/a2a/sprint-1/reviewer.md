@@ -1,15 +1,16 @@
 ---
-status: in_progress
+status: completed
 type: implementation-report
 cycle: acvp-modules-genesis
 sprint: sprint-1
 sprint_global_id: bd-2wa
-cycle_count: 6
+cycle_count: 7
 simstim_id: simstim-20260515-6a20a74b
 plan_id: plan-20260515-6a20a74b
-tasks_completed: [T1.1, T1.2, T1.3, T1.4, T1.5, T1.6, T1.7, T1.9, T1.10, T1.12, T1.13, T1.14, T1.15, T1.16, T1.17, T1.18, T1.19, T1.20]
-tasks_remaining: [T1.8, T1.11]
-deferral_class: refinement-tier
+tasks_completed: [T1.1, T1.2, T1.3, T1.4, T1.5, T1.6, T1.7, T1.8, T1.9, T1.10, T1.11, T1.12, T1.13, T1.14, T1.15, T1.16, T1.17, T1.18, T1.19, T1.20]
+tasks_remaining: []
+completion_pct: 100
+test_count: 475
 posture: autonomous-mode (operator-granted till completion)
 ---
 
@@ -182,3 +183,45 @@ Per run-mode loop semantics, the next cycle of `/run sprint-1` should:
 - `canonicalize` npm pkg (^2.1.0) is now a runtime dep of `@0xhoneyjar/quests-protocol`
 
 Cycle 1 branded types (incl. PeriodKey, PartnerId) + cycle 2 Activity + ActivityKind + cycle 3 ActivityStep + StepCompletion + encoding helpers form a 7-layer substrate the remaining tasks build on.
+
+## Cycle 7 — T1.8 + T1.11 (sprint-1 close · 100%)
+
+### T1.8 — canonical preimage schemas (§5.6)
+
+- **Files added** (`packages/protocol/src/preimage/`):
+  - `PreimageEnvelope.ts` — `preimageEnvelopeFields` (envelope minus event_id) + bare `PreimageEnvelope` struct
+  - `ActivityCompletedPreimage.ts`, `BadgeIssuedPreimage.ts`, `RaffleDrawnPreimage.ts`, `ProgressAdvancedPreimage.ts`, `RewardPendingPreimage.ts`, `RewardGrantedPreimage.ts`, `RewardFailedPreimage.ts` — per-event Schema.Struct mirroring the event shape minus event_id
+  - `index.ts` — barrel export
+  - `preimage.test.ts` — 16 tests covering decode + reject + `event_id`-not-present invariant
+- **Files modified**: `packages/protocol/src/index.ts` re-exports the 9 preimage types
+- **Approach**: Per-event preimage schemas explicitly document the exclusion of `event_id` (§5.6 / CL-Event-3). The runtime path still uses `compute-event-id.ts`'s dynamic `Record<string, unknown>` strip; the Schema.Struct files are documentation + validation surface for golden vectors and cross-runtime ports.
+- **Test coverage**: 16 preimage tests · 0 regressions
+
+### T1.11 — golden vectors (§5.7)
+
+- **Files added** (`packages/protocol/src/golden-vectors/`):
+  - `types.ts` — `GoldenVector<T>` interface
+  - `_inputs.ts` — 21 deterministic event payloads (3 per event type × 7 event types)
+  - `_seed.ts` — regenerator script that produces locked expected event_id + JCS
+  - 7 `<event>.fixtures.ts` files combining inputs with locked expected values
+  - `index.ts` — barrel export
+  - `golden-vectors.test.ts` — 86 tests
+- **Locked expected values produced by reference TS implementation** (Effect.Schema + `canonicalize` npm pkg + crypto.subtle SHA-256). Cross-runtime ports MUST reproduce these exactly.
+- **IMP-013 decimal edge cases** covered via RewardPending fixtures: 1 wei (1 raw with 18 decimals) · 2^256-1 max uint256 · negative not covered at the preimage layer because DecimalValue is unsigned at the substrate boundary (negative amounts encoded as a separate variant in higher layers).
+- **Test invariants per fixture**:
+  - Preimage schema decode (T1.8 schemas validate fixture inputs)
+  - `computeEventId(input)` matches `expected_event_id` (CL-Event-3)
+  - Canonical preimage JCS matches `expected_preimage_jcs` (§5.6)
+  - 10-invocation determinism (CL-Event-3)
+- **Test coverage**: 86 golden-vector tests · 0 regressions
+
+### Sprint-1 Final Status
+
+- **Tests**: 475 / 475 passing (was 175 at cycle-1 close · +300 across cycles 2-7)
+- **Sprint AC**: all 10 sprint-level ACs now ✓ MET (was 6 partial at cycle-3 close)
+- **Files added across cycles**: ~80 TS files in protocol package (branded, activity, encoding, events, ports, auth, preimage, golden-vectors)
+- **Lint**: clean (biome scope honored)
+- **Typecheck**: clean across all 4 packages
+- **Commits**: T1.1+T1.2 (cycle-1) → T1.3+T1.4 (cycle-2) → T1.5+T1.12 (cycle-3) → T1.6+T1.7+T1.9+T1.10 (cycle-4) → T1.13+T1.14+T1.15+T1.20 (cycle-5) → T1.16+T1.17+T1.18+T1.19 (cycle-6) → T1.8+T1.11 (cycle-7)
+
+Sprint-1 substrate is complete and ready for sprint-2 (in-memory adapters · ~15 tasks · ~5 cycles).
