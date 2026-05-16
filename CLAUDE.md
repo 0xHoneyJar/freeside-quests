@@ -1,4 +1,16 @@
-# freeside-quests — agent instructions
+@.claude/loa/CLAUDE.loa.md
+
+# freeside-activities — agent instructions
+
+> Repo renamed from `freeside-quests` 2026-05-15 as part of acvp-modules-genesis cycle.
+> Old name preserved for archeological context · new framing supersedes everything below
+> at the canonical level (per `~/bonfire/grimoires/bonfire/specs/acvp-modules-genesis-kickoff-2026-05-15.md`).
+> This file will be fully rewritten during S0.5 of the cycle. The text below is LEGACY
+> scaffold content from the freeside-quests era — read for lineage, not for current authority.
+
+---
+
+## LEGACY CONTENT (freeside-quests era · 2026-04-28)
 
 This is a freeside-* installable module: **quest-based engagement** (POAPs, missions, badges, raffles, completion tracking). Six packages: `protocol/` (sealed schemas), `ports/` (TS interfaces), `adapters/` (typed clients + Subsquid indexer), `mcp-tools/` (agent surface), `engine/` (headless quest logic), `ui/` (shared React components).
 
