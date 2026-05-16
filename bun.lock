@@ -13,8 +13,18 @@
       },
     },
     "packages/adapters": {
-      "name": "@freeside-quests/adapters",
+      "name": "@0xhoneyjar/freeside-activities-adapters",
       "version": "0.1.0",
+      "devDependencies": {
+        "@0xhoneyjar/quests-protocol": "workspace:*",
+        "effect": "^3.12.0",
+        "typescript": "^5.7.0",
+        "vitest": "^3.0.0",
+      },
+      "peerDependencies": {
+        "@0xhoneyjar/quests-protocol": "workspace:*",
+        "effect": "^3.12.0",
+      },
     },
     "packages/discord-renderer": {
       "name": "@0xhoneyjar/quests-discord-renderer",
@@ -101,6 +111,8 @@
     },
   },
   "packages": {
+    "@0xhoneyjar/freeside-activities-adapters": ["@0xhoneyjar/freeside-activities-adapters@workspace:packages/adapters"],
+
     "@0xhoneyjar/medium-registry": ["@0xhoneyjar/medium-registry@0.2.0", "", { "peerDependencies": { "effect": "^3.10.0" } }, "sha512-A7Kpd8UjfymCzQ6Gdod8ZcGn2LvWmgaksYhiY8M3RpUWAziJ/0VSc0SBG7PLt5dCwtWdf0xiOLG3TPJ5qitIqw=="],
 
     "@0xhoneyjar/quests-discord-renderer": ["@0xhoneyjar/quests-discord-renderer@workspace:packages/discord-renderer"],
@@ -190,8 +202,6 @@
     "@esbuild/win32-ia32": ["@esbuild/win32-ia32@0.21.5", "", { "os": "win32", "cpu": "ia32" }, "sha512-SWXFF1CL2RVNMaVs+BBClwtfZSvDgtL//G/smwAc5oVK/UPu2Gu9tIaRgFmYFFKrmg3SyAjSrElf0TiJ1v8fYA=="],
 
     "@esbuild/win32-x64": ["@esbuild/win32-x64@0.21.5", "", { "os": "win32", "cpu": "x64" }, "sha512-tQd/1efJuzPC6rCFwEvLtci/xNFcTZknmXs98FYDfGE4wP9ClFV98nyKrzJKVPMhdDnjzLhdUyMX4PsQAPjwIw=="],
-
-    "@freeside-quests/adapters": ["@freeside-quests/adapters@workspace:packages/adapters"],
 
     "@freeside-quests/mcp-tools": ["@freeside-quests/mcp-tools@workspace:packages/mcp-tools"],
 

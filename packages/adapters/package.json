@@ -1,7 +1,51 @@
 {
-  "name": "@freeside-quests/adapters",
+  "name": "@0xhoneyjar/freeside-activities-adapters",
   "version": "0.1.0",
-  "private": true,
-  "description": "Typed clients binding ports/ to specific transports (HTTP, NATS, webhook). Plus Subsquid indexer template parameterized for per-world deployment. One canonical adapter set every TS consumer imports.",
-  "license": "MIT"
+  "private": false,
+  "description": "Typed adapter family for @0xhoneyjar/quests-protocol ports — ships in-memory adapters for dev + test, leaving production adapters (postgres · convex · etc) to the consuming world.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./in-memory": {
+      "types": "./dist/in-memory/index.d.ts",
+      "import": "./dist/in-memory/index.js"
+    }
+  },
+  "files": ["dist", "src", "README.md"],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0xHoneyJar/freeside-activities.git",
+    "directory": "packages/adapters"
+  },
+  "homepage": "https://github.com/0xHoneyJar/freeside-activities/tree/master/packages/adapters#readme",
+  "bugs": {
+    "url": "https://github.com/0xHoneyJar/freeside-activities/issues"
+  },
+  "keywords": ["freeside", "activities", "adapters", "in-memory", "effect"],
+  "peerDependencies": {
+    "@0xhoneyjar/quests-protocol": "workspace:*",
+    "effect": "^3.12.0"
+  },
+  "devDependencies": {
+    "@0xhoneyjar/quests-protocol": "workspace:*",
+    "effect": "^3.12.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
 }
