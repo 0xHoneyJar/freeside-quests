@@ -1,0 +1,26 @@
+{
+  "schema_version": "3",
+  "slug": "activities-api",
+  "publisher": "0xHoneyJar",
+  "is": {
+    "one_liner": "Unified Activity supertype substrate — quests, missions, badges, raffles, completion tracking",
+    "scope": [
+      "Define sealed Activity schemas (quest defs, completion criteria, badge shapes, raffle schemas)",
+      "Expose typed ports — IQuestEngine, IBadgeService, IRaffleService",
+      "Offer an MCP agent surface (who completed Quest X? what badges does wallet Y hold?)",
+      "Ship a headless quest-engine extracted from CubQuests"
+    ]
+  },
+  "is_not": [
+    "Does NOT run a Discord bot or Next.js app — the CubQuests dashboard stays the operator surface",
+    "Will NOT be a Postgres schema or an indexer — it consumes indexed reads",
+    "Does NOT own dashboard chrome — only the headless engine + contracts"
+  ],
+  "capabilities": ["getQuestCompletion", "getBadges", "getRaffleEntries"],
+  "cycle_state": {
+    "status": "active",
+    "since": "2026-05-23",
+    "next_review": "2026-08-21"
+  },
+  "_comment": "composes_with + acvp_invariants omitted pending port-schema sealing (ADR-007 App A.2 / ADR-008 §D-11). Worlds compose [activities-api, mint-api, TreasuryPort] per README. The mcp transport block is added at deployment."
+}
