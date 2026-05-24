@@ -1,5 +1,5 @@
 {
-  "name": "freeside-activities",
+  "name": "@0xhoneyjar/activities",
   "version": "0.1.0",
   "private": true,
   "description": "Activity substrate for freeside-* modules — sealed Effect.Schema protocol (Activity, ActivityKind, ActivityReward, EventEnvelope, computeEventId), typed ports (Progress, CompletionEvent, Reward, IdentityResolver), in-memory adapters, read-only MCP tools, headless engine. Cycle: acvp-modules-genesis.",
