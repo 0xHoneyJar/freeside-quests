@@ -1,0 +1,214 @@
+# packages/protocol/beacon.yaml — activities-api (freeside-activities) building beacon (BeaconV3)
+#
+# Per ADR-007 §D-4 + Appendix A.1 + ADR-008 §D-11 (loa-freeside).
+# Validated against `packages/beacon-schema/dist/src/beacon-v3.js` (BeaconV3Schema)
+# in loa-freeside. V3 is the building-identity beacon (schema_version "3"); it
+# is a SEPARATE shape from V2 (the MCP-tenant self-declaration) — V3 omits
+# V2's `payment`/`docs` fields and requires top-level identity (slug +
+# publisher + is + is_not + cycle_state).
+#
+# Authored 2026-05-26 (beacon-v3-author dispatch from loa-freeside cluster
+# coordinator). Shape mirrors the canonical inventory fixture + identity-api +
+# score-api + storage-api + sonar-api beacons:
+#   loa-freeside/packages/beacon-schema/tests/fixtures/freeside-inventory-v3.yaml
+#   identity-api/packages/protocol/beacon.yaml
+#   score-api/packages/protocol/beacon.yaml
+#   storage-api/packages/protocol/beacon.yaml
+#   sonar-api/packages/protocol/beacon.yaml
+#
+# This file is the source-of-truth authored shape. At deploy time the build
+# step (freeside-cli doctor / T2a) recomputes placeholder hashes:
+#   - composes_with.<sibling>.tag       (TagName@semver+<sha256_prefix>)
+#   - sealed_schemas.<n>.hash           (full 64-hex sha256 of canonical JSON)
+# and emits the resolved JSON to /.well-known/beacon.json once an HTTP
+# runtime ships.
+
+schema_version: "3"
+slug: "activities-api"
+publisher: "0xHoneyJar"
+
+# ─── Identity + boundaries (per ADR-008 §D-11) ───────────────────────────
+
+is:
+  one_liner: "Unified Activity supertype substrate — quest/mission/badge-claim/raffle-entry as one sealed schema family"
+  scope:
+    - "Sealed Effect.Schema Activity supertype: kind + period_key + steps[] + reward + completion_event"
+    - "Discriminated ActivityKind union (quest · mission · badge-claim · raffle-entry · WorldDefined seam)"
+    - "Canonical event-id hashing pipeline (JCS RFC 8785 preimage → SHA-256) with caller-supplied nonce"
+    - "Typed ports with sealed errors: Progress · CompletionEvent · Reward · IdentityResolver · EventStore"
+    - "Async reward state machine: RewardPending → RewardGranted | RewardFailed (D18 idempotency)"
+    - "Read-only MCP tool surface (5 query-plane tools) with bearer-token auth + signed cursors"
+    - "Headless engine + in-memory adapters + golden vectors for cross-runtime determinism"
+
+is_not:
+  - "Does NOT index on-chain events — composes nothing on the completion path; freeside-sonar owns indexing"
+  - "Does NOT compute scores from completed activities — composes score-api on the read side (cross-module emit)"
+  - "Will NOT issue NFT rewards directly — BadgeMint reward is a forward-compat reference to freeside-mint"
+  - "Will NOT own operator-facing dashboards — cubquests-interface stays canonical for quest CONTENT authoring"
+  - "Refuses to mix activity types in a single contract — sealed discriminated union on _tag enforced at schema layer"
+  - "Refuses to surface user-visible strings at the substrate boundary (A8) — CMP discipline owned by surface adapters"
+  - "Does NOT mutate via MCP (A7) — agent surface is READ-ONLY; mutations flow through engine + typed ports"
+
+# ─── Composition (sibling buildings activities reads at runtime) ─────────
+#
+# activities-api ships as an npm library family (@0xhoneyjar/quests-protocol,
+# @0xhoneyjar/quests-engine, @0xhoneyjar/freeside-activities-mcp-tools,
+# @0xhoneyjar/quests-discord-renderer, @0xhoneyjar/quests-ui). There is NO
+# HTTP runtime in this repo today — composition arrows describe what the
+# library CODE calls when a host wires it up:
+#
+#   - identity-api  (REQUIRED for MCP surface)  — bearer-token JWT verification
+#     via @freeside-auth/adapters/jwks-validator (packages/engine/src/auth/sietch.ts)
+#   - storage-api   (OPTIONAL, currently STUB) — badge image variant resolution
+#     planned via @freeside-storage/asset-pipeline (packages/engine/src/badge/
+#     asset-pipeline-stub.ts notes the cycle-B integration point)
+#
+# Not declared (intentional):
+#   - mint-api      — only a forward-compat ID brand (MintIntentId); activities
+#                     does NOT call mint at runtime. The world's TreasuryPort
+#                     handles the mint dispatch in the closed-loop pattern.
+#   - sonar-api     — sonar CONSUMES activities BadgeIssued events for indexing;
+#                     arrow points the wrong way per closer-to-raw-publishes rule.
+#   - score-api     — score CONSUMES activities completion events; same direction.
+#   - mediums-api   — discord-renderer composes the medium registry but as a
+#                     library-time wiring, not a runtime sibling call (today).
+
+composes_with:
+  identity-api:
+    role: "JWT verification for MCP bearer-token auth (jwks discovery + signature verify)"
+    tag: "AuthPort@1.0.0+0000000000000000"        # PLACEHOLDER — doctor recomputes
+    required: true
+  storage-api:
+    role: "Badge image variant resolution via asset-pipeline (stubbed today; cycle-B integration)"
+    tag: "StoragePort@1.0.0+0000000000000000"     # PLACEHOLDER — doctor recomputes
+    required: false
+
+# ─── ACVP invariants (verifiability discipline per ACVP doctrine) ────────
+#
+# GROUNDED — every proof_artifact path points at a real vitest file that
+# exists today (645+ tests across 45 files, sprint-1+2+3 APPROVED). The
+# in-memory event-store conformance suite binds CL-EventStore-1..7 against
+# the reference adapter; production adapters (postgres · convex) re-run the
+# same scenarios per SDD §4.2.
+
+acvp_invariants:
+  - id: hash_chain
+    scope: "event_id = SHA-256(canonical JCS preimage) — pure deterministic; 100 invocations of same event → same hash"
+    proof_artifact: "packages/protocol/src/golden-vectors/golden-vectors.test.ts"
+  - id: schema_enforcement
+    scope: "ActivityKind sealed discriminated union — _tag is discriminator; cross-kind variants reject at schema boundary"
+    proof_artifact: "packages/protocol/src/activity/activity.test.ts"
+  - id: idempotency
+    scope: "EventStore CL-EventStore-4: duplicate event_id append is rejected (DuplicateEvent); RewardPort D18: duplicate (originating_event_id, recipient) returns AlreadyGranted"
+    proof_artifact: "packages/adapters/src/in-memory/__tests__/event-store-conformance.test.ts"
+  - id: state_machine_totality
+    scope: "Quest lifecycle (Draft → Active → Completing → Completed) + RewardState async machine (Pending → Granted | Failed) — every transition tested"
+    proof_artifact: "packages/engine/src/__tests__/quest-state-machine.test.ts"
+  - id: monotonicity
+    scope: "EventStore CL-EventStore-1+2: monotonic_sequence strictly increases per partition; append-only (no rewrites)"
+    proof_artifact: "packages/adapters/src/in-memory/__tests__/event-store-conformance.test.ts"
+  - id: audit_replay
+    scope: "EventStore CL-EventStore-6: replay-determinism — re-reading the same partition produces byte-identical event sequence"
+    proof_artifact: "packages/adapters/src/in-memory/__tests__/event-store-conformance.test.ts"
+  - id: event_completeness
+    scope: "CL-Event-1: no Activity transitions state without a CompletionEvent; CL-Event-2: every event carries source_event_hash linking back"
+    proof_artifact: "packages/protocol/src/events/events.test.ts"
+
+# ─── Sealed schemas (hash-verified protocol surface) ─────────────────────
+#
+# activities-api's primary protocol surface is Effect.Schema (TS-native),
+# consumed via @0xhoneyjar/quests-protocol package imports. The 5 MCP tool
+# specs at packages/mcp-tools/tools/*.json are externalized Draft 2020-12
+# JSON Schemas — those ARE sealed-schema-shaped (a stable wire-format
+# contract that downstream MCP gateways + agent runtimes depend on).
+#
+# Hashes are PLACEHOLDERS (64 zeros); freeside-cli doctor recomputes the
+# canonical-JSON sha256 at validation time.
+#
+# A future cycle MAY emit JSON Schema artifacts for the Activity supertype
+# + EventEnvelope + ActivityReward via Effect.Schema's JSON Schema bridge
+# (PRD §0 + CLAUDE.md "Schema governance" — Effect.Schema is runtime, JSON
+# Schema is cross-runtime contract). When that lands, add those entries
+# here alongside the MCP tool specs.
+
+sealed_schemas:
+  - path: "packages/mcp-tools/manifest.json"
+    hash: "0000000000000000000000000000000000000000000000000000000000000000"   # PLACEHOLDER — doctor recomputes
+    consumers:
+      - "freeside-mcp-gateway"          # the federation gateway that catalogs tenants
+      - "freeside-ruggy"                # persona-bot agent runtime (mcp tool consumer)
+      - "cubquests-interface"           # canonical CM surface (cycle-Q resume work)
+  - path: "packages/mcp-tools/tools/get-active-activities.json"
+    hash: "0000000000000000000000000000000000000000000000000000000000000000"   # PLACEHOLDER — doctor recomputes
+    consumers:
+      - "freeside-mcp-gateway"
+      - "freeside-ruggy"
+  - path: "packages/mcp-tools/tools/get-progress.json"
+    hash: "0000000000000000000000000000000000000000000000000000000000000000"   # PLACEHOLDER — doctor recomputes
+    consumers:
+      - "freeside-mcp-gateway"
+      - "freeside-ruggy"
+  - path: "packages/mcp-tools/tools/get-badges.json"
+    hash: "0000000000000000000000000000000000000000000000000000000000000000"   # PLACEHOLDER — doctor recomputes
+    consumers:
+      - "freeside-mcp-gateway"
+      - "freeside-ruggy"
+  - path: "packages/mcp-tools/tools/get-raffle-entries.json"
+    hash: "0000000000000000000000000000000000000000000000000000000000000000"   # PLACEHOLDER — doctor recomputes
+    consumers:
+      - "freeside-mcp-gateway"
+      - "freeside-ruggy"
+  - path: "packages/mcp-tools/tools/list-kinds.json"
+    hash: "0000000000000000000000000000000000000000000000000000000000000000"   # PLACEHOLDER — doctor recomputes
+    consumers:
+      - "freeside-mcp-gateway"
+      - "freeside-ruggy"
+
+# ─── Capabilities (the public method surface) ─────────────────────────────
+#
+# The 5 MCP tool names (the read-only query plane). Mutation capabilities
+# (publishActivity / advanceProgress / completeActivity / grantReward) live
+# on the typed ports — they are NOT MCP-callable per A7. When/if the engine
+# ships a non-MCP RPC surface, add those capability names here too.
+
+capabilities:
+  - get-active-activities        # FR-9 · packages/mcp-tools/tools/get-active-activities.json
+  - get-progress                 # FR-9 · packages/mcp-tools/tools/get-progress.json
+  - get-badges                   # FR-9 · packages/mcp-tools/tools/get-badges.json
+  - get-raffle-entries           # FR-9 · packages/mcp-tools/tools/get-raffle-entries.json
+  - list-kinds                   # FR-9 · packages/mcp-tools/tools/list-kinds.json
+
+# ─── Cycle state (honest maturity signal) ─────────────────────────────────
+#
+# candidate — npm library family is shipped (@0xhoneyjar/quests-protocol
+# v0.1.2 + quests-engine v0.1.2 + freeside-activities-mcp-tools v0.1.0 +
+# quests-discord-renderer v0.1.2 + quests-ui). Sprint-1+2 COMPLETED + AUDITED
+# APPROVED; Sprint-3 (docs + cross-runtime conformance + publish-readiness)
+# in progress per CLAUDE.md "Current state". 648 tests + 2 skipped postgres
+# stubs (40 test files across 5 packages). NO HTTP runtime deployed —
+# activities-api-production.up.railway.app currently 404 per loa-freeside
+# registry. cubquests-interface migration (the first production consumer)
+# is cycle-Q resume work, NOT this cycle.
+
+cycle_state:
+  status: candidate
+  since: "2026-04-28"             # initial scaffold (instance-4 of freeside-* module family)
+  next_review: "2026-10-25"       # +180d cap per doctor enforcement
+
+# ─── Transport ────────────────────────────────────────────────────────────
+#
+# NO `mcp:` block declared. activities-api packages a CATALOG of MCP tool
+# specs (packages/mcp-tools/tools/*.json) + manifest validator + bearer-token
+# auth helpers — but it does NOT register a running MCP server in this repo
+# (no @modelcontextprotocol/sdk usage, no StdioServerTransport, no McpServer
+# bind). The published tools surface is consumed by hosts (cubquests-interface,
+# ruggy, world-specific deployments) which wire the manifest + tool specs +
+# auth fixtures into THEIR own MCP server runtime.
+#
+# Per BeaconV3 the `mcp:` block is OPTIONAL ("present once the building
+# deploys a callable endpoint" — ADR-008 §D-11.1). It will be added when an
+# HTTP/MCP runtime ships under this repo (forward path: a thin stdio adapter
+# wrapping the typed ports + in-memory adapters + the manifest, OR a Railway
+# deployment fronting the engine).
+#
+# NO `payment:` or `docs:` blocks — V3 drops them (V2-only fields).
