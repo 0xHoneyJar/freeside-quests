@@ -403,23 +403,55 @@ export const makePostgresEventStore = (
 
     query: (filter: EventFilter) =>
       Effect.gen(function* () {
-        // Pushdown the cheap equality filters; do the rest in JS (the
-        // conformance suite only exercises activity_id). Production worlds with
-        // large stores SHOULD push every predicate into SQL.
+        // DoS FIX (#21 read-plane review, "before-deploy HIGH"): push EVERY
+        // equality predicate AND a bounded LIMIT into SQL. The prior impl ran
+        // `WHERE $id = …` (no other predicate, no LIMIT) and full-scanned the
+        // result set into the JS heap, filtering in a loop — an unbounded scan
+        // an attacker could trigger by hitting the read route. Now:
+        //   - `$id`, `identity_id`, `activity_id` are SQL WHERE predicates
+        //     (backed by idx_event_store_query in the migration),
+        //   - `LIMIT` is ALWAYS applied: the caller's clamped `filter.limit`
+        //     (the route clamps to DEFAULT/MAX) or a hard backstop here, so a
+        //     filter that somehow arrives with no `limit` STILL cannot scan
+        //     the whole table.
+        //
+        // The residual predicates that are awkward in SQL (ts range, the
+        // optional source_event_hash) are still applied in JS, but only over
+        // the already-bounded, already-identity-scoped page — never the table.
+        const HARD_LIMIT = 1000; // matches EventFilter's Schema.between(1,1000)
+        const effLimit =
+          filter.limit !== undefined
+            ? Math.min(Math.max(filter.limit, 1), HARD_LIMIT)
+            : HARD_LIMIT;
+
+        const where: string[] = ["event_envelope->>'$id' = $1"];
+        const args: unknown[] = [ACTIVITY_COMPLETED_ID];
+        if (filter.identity_id !== undefined) {
+          args.push(filter.identity_id as unknown as string);
+          where.push(`event_envelope->>'identity_id' = $${args.length}`);
+        }
+        if (filter.activity_id !== undefined) {
+          args.push(filter.activity_id as unknown as string);
+          where.push(`event_envelope->>'activity_id' = $${args.length}`);
+        }
+        args.push(effLimit);
+        const limitParam = `$${args.length}`;
+
         const res = yield* Effect.promise(() =>
           pool.query<EventRow>(
             `SELECT event_envelope
                FROM ${table}
-              WHERE event_envelope->>'$id' = $1
-              ORDER BY scope, partition_value, monotonic_sequence ASC`,
-            [ACTIVITY_COMPLETED_ID],
+              WHERE ${where.join(" AND ")}
+              ORDER BY scope, partition_value, monotonic_sequence ASC
+              LIMIT ${limitParam}`,
+            args,
           ),
         );
         const out: ActivityCompleted[] = [];
         for (const r of res.rows) {
           const ac = r.event_envelope as unknown as ActivityCompleted;
-          if (filter.activity_id !== undefined && ac.activity_id !== filter.activity_id) continue;
-          if (filter.identity_id !== undefined && ac.identity_id !== filter.identity_id) continue;
+          // identity_id / activity_id already filtered in SQL; the residual
+          // (rarely-used) predicates run over the bounded page only.
           if (
             filter.source_event_hash !== undefined &&
             ac.source_event_hash !== filter.source_event_hash
@@ -429,7 +461,6 @@ export const makePostgresEventStore = (
           if (filter.ts_after !== undefined && ac.ts <= filter.ts_after) continue;
           if (filter.ts_before !== undefined && ac.ts >= filter.ts_before) continue;
           out.push(ac);
-          if (filter.limit !== undefined && out.length >= filter.limit) break;
         }
         return out as ReadonlyArray<ActivityCompleted>;
       }) as Effect.Effect<ReadonlyArray<ActivityCompleted>, EventError>,

@@ -82,6 +82,27 @@ CREATE TABLE IF NOT EXISTS event_store (
 CREATE INDEX IF NOT EXISTS idx_event_store_partition_seq
   ON event_store (scope, partition_value, monotonic_sequence);
 
+-- ----------------------------------------------------------------------------
+-- DoS FIX (#21 read-plane review, "before-deploy HIGH") + IDENTITY-SCOPE index.
+--
+-- CompletionEventPort.query (event-store.ts) drives the public READ plane. It
+-- filters on the JSONB predicates `event_envelope->>'$id'` (the event-type
+-- discriminant) and `event_envelope->>'identity_id'` (the per-caller scope),
+-- and now applies a bounded LIMIT. Without an index on those expressions
+-- Postgres seq-scans the WHOLE table for every read — the exact un-indexed
+-- full-scan the review flagged. This composite expression index makes the
+-- identity-scoped, type-filtered read an index range scan:
+--
+--   WHERE event_envelope->>'$id' = $1
+--     AND event_envelope->>'identity_id' = $2
+--     ORDER BY ... LIMIT $n
+--
+-- The leading `$id` column also serves the type-only query (badges/all-
+-- activities for an identity); the second column serves the per-identity
+-- isolation predicate the auth layer now ALWAYS supplies on the read path.
+CREATE INDEX IF NOT EXISTS idx_event_store_query
+  ON event_store ((event_envelope->>'$id'), (event_envelope->>'identity_id'));
+
 -- ============================================================================
 -- reward_grants — backs makePostgresRewardPort (RewardPort · FR-8 + D18).
 --
