@@ -59,11 +59,21 @@ const docker = (args: string[]): string =>
 const sleep = (ms: number): Promise<void> =>
   new Promise((r) => setTimeout(r, ms));
 
+export interface FreshPoolOptions {
+  /**
+   * Extra DDL applied to the fresh schema AFTER the event-store migration
+   * (e.g. the apply_resource_mutation test fixture for the T-A2 atomicity
+   * suite). Loaded into the SAME schema via search_path, memoized with the
+   * migration so it runs exactly once per schema. Default: none.
+   */
+  readonly extraDdl?: ReadonlyArray<string>;
+}
+
 export interface TestPostgres {
   /** The raw pg.Pool — schema-agnostic (search_path = public). */
   readonly rawPool: Pool;
   /** Build a fresh schema-isolated pool wrapper (one per factory() call). */
-  readonly freshPool: () => EventStorePostgresPool;
+  readonly freshPool: (options?: FreshPoolOptions) => EventStorePostgresPool;
   /** Tear down: end the pool + stop/remove the container. */
   readonly stop: () => Promise<void>;
 }
@@ -165,7 +175,10 @@ export const startTestPostgres = async (): Promise<TestPostgres | null> => {
     // CREATE SCHEMA / CREATE TABLE collide on Postgres catalog unique indexes
     // (pg_namespace, pg_type). This is what the concurrency test exposed.
     const ensuredSchemas = new Map<string, Promise<void>>();
-    const ensureSchema = (schema: string): Promise<void> => {
+    const ensureSchema = (
+      schema: string,
+      extraDdl: ReadonlyArray<string> = [],
+    ): Promise<void> => {
       const existing = ensuredSchemas.get(schema);
       if (existing !== undefined) return existing;
       const setup = (async () => {
@@ -176,6 +189,11 @@ export const startTestPostgres = async (): Promise<TestPostgres | null> => {
           // CREATE TABLE statements land in `schema`, not `public`.
           await c.query(`SET search_path TO ${schema}`);
           await c.query(migrationSql);
+          // Optional extra DDL (e.g. the apply_resource_mutation fixture) lands
+          // in the SAME schema, after the migration.
+          for (const ddl of extraDdl) {
+            await c.query(ddl);
+          }
         } finally {
           c.release();
         }
@@ -198,15 +216,16 @@ export const startTestPostgres = async (): Promise<TestPostgres | null> => {
       release: (err?: unknown) => client.release(err as Error | undefined),
     });
 
-    const freshPool = (): EventStorePostgresPool => {
+    const freshPool = (options?: FreshPoolOptions): EventStorePostgresPool => {
       schemaCounter += 1;
       const schema = `conf_${schemaCounter}`;
+      const extraDdl = options?.extraDdl ?? [];
       return {
         query: async <T extends QueryResultRow = QueryResultRow>(
           text: string,
           values?: ReadonlyArray<unknown>,
         ): Promise<PgQueryResult<T>> => {
-          await ensureSchema(schema);
+          await ensureSchema(schema, extraDdl);
           const c = await rawPool.connect();
           try {
             await c.query(`SET search_path TO ${schema}`);
@@ -219,7 +238,7 @@ export const startTestPostgres = async (): Promise<TestPostgres | null> => {
           }
         },
         connect: async (): Promise<EventStorePostgresClient> => {
-          await ensureSchema(schema);
+          await ensureSchema(schema, extraDdl);
           const c = await rawPool.connect();
           await c.query(`SET search_path TO ${schema}`);
           return wrapClient(c);
