@@ -15,7 +15,8 @@
     "packages/mcp-tools",
     "packages/engine",
     "packages/ui",
-    "packages/discord-renderer"
+    "packages/discord-renderer",
+    "apps/runtime"
   ],
   "scripts": {
     "build": "bun run --filter '*' build",
