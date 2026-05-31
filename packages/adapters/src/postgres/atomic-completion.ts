@@ -49,14 +49,22 @@
  *   1. event_store PRIMARY KEY (event_id)            → CL-EventStore-4
  *   2. reward_grants PRIMARY KEY (originating_event_id, recipient) → CL-Reward-2/D18
  *   3. apply_resource_mutation's `p_idempotency_key` → resource_transactions
- *      (idempotency_key, user_address) uniqueness inside cubquest-db.
+ *      PARTIAL-UNIQUE index (user_address, resource_type, idempotency_key)
+ *      WHERE idempotency_key IS NOT NULL — grounded in
+ *      cubquests-interface/supabase/migrations/
+ *        20251102225424_fix_idempotency_key_column_type_to_text.sql
+ *      (column-set corrected — defect #21.5: this comment previously named
+ *      `(idempotency_key, user_address)`, which is BOTH the wrong order AND
+ *      missing `resource_type`).
  *
  * On the FIRST attempt all three insert. On a RETRY of the same completion the
  * event_id duplicate-reject (23505) fires FIRST, aborts the whole transaction,
  * and NOTHING downstream runs — so the balance is never touched twice. The
  * apply_resource_mutation idempotency key is belt-and-suspenders for the case
  * where a retry somehow reaches the proc with a fresh event_id but the same
- * logical completion (it returns zero-deltas, not a second grant).
+ * logical completion (it returns zero-deltas, not a second grant — and the
+ * bridge now ENFORCES resourceIdempotencyKey === event_id so this case cannot
+ * arise from the host's coarse legacy key — defect #21.4).
  *
  * ── apply_resource_mutation signature (grounded) ─────────────────────────────
  *
@@ -184,6 +192,18 @@ export interface GrantAndCompleteInput {
   readonly sourceType: string;
   /** Optional source_id (e.g. the activity_id) recorded on the ledger row. */
   readonly sourceId?: string;
+  /**
+   * Provenance metadata merged into the ledger row's `metadata` jsonb, mirroring
+   * the legacy stored-proc path which writes `{ period_key, step_id }`
+   * (cubquests-interface/lib/activities/service.ts:~657-660). Defect #21.9: the
+   * bridge previously hard-coded `metadata = { idempotencyKey }`, dropping
+   * period_key/step_id — so engine-written ledger rows carried a DISJOINT
+   * metadata shape from legacy rows. The bridge now merges
+   * `{ ...sourceMetadata, idempotencyKey }` so engine + legacy rows are shape-
+   * compatible (idempotencyKey is always appended, matching the proc's own
+   * `v_metadata || { idempotencyKey }` behavior in prod).
+   */
+  readonly sourceMetadata?: Readonly<Record<string, unknown>>;
 }
 
 export interface PostgresAtomicCompletionConfig {
@@ -196,9 +216,24 @@ export interface PostgresAtomicCompletionConfig {
   readonly resourceMutationFn?: string;
   /** When true, append re-runs computeEventId and rejects mismatch. Default true. */
   readonly verifyEventId?: boolean;
+  /**
+   * Defect #21.4 layer 1: when true (default), the bridge ENFORCES that
+   * `resourceIdempotencyKey === event.event_id` — making the resource ledger key
+   * per-event so the host's coarse legacy resource key (activity+period+step)
+   * cannot let two distinct-event completions share one resource key (which
+   * would no-op the 2nd grant while its event+grant committed → completed-
+   * without-reward). Set false ONLY if a caller deliberately supplies a
+   * different (still per-event-unique) key shape and accepts responsibility for
+   * the invariant.
+   */
+  readonly enforceResourceKeyIsEventId?: boolean;
   /** Max retries on SERIALIZABLE serialization-failure (40001). Default 8. */
   readonly maxSerializationRetries?: number;
-  /** Synthetic granted_event_id provider. Default deterministic counter. */
+  /**
+   * Synthetic granted_event_id provider. Default: DETERMINISTIC derivation from
+   * the grant tuple (defect #21.7) — NOT an in-process counter. Override only in
+   * tests that need a specific synthetic id.
+   */
   readonly nextGrantedEventIdProvider?: () => EventId;
   readonly timestampProvider?: () => string;
   /**
@@ -230,6 +265,35 @@ interface TipRow extends QueryResultRow {
   readonly monotonic_sequence: string | number;
 }
 
+/**
+ * The delta columns apply_resource_mutation RETURNS. On an idempotency hit (a
+ * ledger row already exists for this idempotency_key) the proc returns
+ * {0,0,0}; on a fresh apply it returns the deltas it wrote. Defect #21.4 reads
+ * these to detect the zero-delta-with-expected-reward divergence.
+ */
+interface ProcDeltaRow extends QueryResultRow {
+  readonly common: string | number | null;
+  readonly rare: string | number | null;
+  readonly legendary: string | number | null;
+}
+
+const toIntOrZero = (v: string | number | null | undefined): number => {
+  if (v === null || v === undefined) return 0;
+  return typeof v === "number" ? v : Number.parseInt(v, 10);
+};
+
+/** Sum the absolute deltas the proc reported as applied across all returned rows. */
+const sumProcDelta = (rows: ReadonlyArray<ProcDeltaRow>): number => {
+  let total = 0;
+  for (const r of rows) {
+    total +=
+      Math.abs(toIntOrZero(r.common)) +
+      Math.abs(toIntOrZero(r.rare)) +
+      Math.abs(toIntOrZero(r.legendary));
+  }
+  return total;
+};
+
 const partitionKeyToString = (pk: PartitionKey): string => `${pk.scope}::${pk.value}`;
 
 const toInt = (v: string | number): number =>
@@ -246,16 +310,48 @@ export const makePostgresAtomicCompletion = (
   const rewardTable = config.rewardTableName ?? "reward_grants";
   const resourceFn = config.resourceMutationFn ?? "apply_resource_mutation";
   const verifyEventId = config.verifyEventId ?? true;
+  const enforceResourceKeyIsEventId = config.enforceResourceKeyIsEventId ?? true;
   const maxRetries = config.maxSerializationRetries ?? 8;
   const crashAfter = config.__crashAfter;
 
-  let counter = 0;
-  const defaultGrantedEventId = (): EventId => {
-    counter += 1;
-    return counter.toString(16).padStart(64, "e") as unknown as EventId;
+  // Defect #21.7 fix: granted_event_id is now derived DETERMINISTICALLY from the
+  // grant's identity tuple (originating_event_id, recipient) — the SAME tuple
+  // that is the reward_grants PRIMARY KEY. The prior impl used a per-PROCESS hex
+  // counter that (a) reset to 1 on every restart and (b) ran independently per
+  // worker, so two workers (or one worker across a redeploy) could mint the SAME
+  // synthetic id for DIFFERENT grants. Because granted_event_id has no UNIQUE
+  // constraint, that collision was silent — and it corrupts retry.ts's D18
+  // AlreadyGranted recovery, whose `.find(g => g.granted_event_id === ...)`
+  // would then return the WRONG RewardGrantedRecord.
+  //
+  // Deriving it via computeEventId over the canonical (originating, recipient,
+  // reward) preimage makes it: process-independent, restart-stable, and
+  // collision-free across distinct grants (a different tuple → a different
+  // hash), while a RETRY of the same grant reproduces the same id. RewardGranted
+  // is a NON-mutating event type, so a null nonce is permitted (the tuple itself
+  // supplies the uniqueness; no caller nonce is needed).
+  const deriveGrantedEventId = async (
+    input: GrantAndCompleteInput,
+  ): Promise<EventId> => {
+    const preimage = {
+      $id: "https://schemas.freeside.thj/reward-granted/v1.0.0",
+      preimage_schema_id:
+        "https://schemas.freeside.thj/preimage/reward-granted/v1.0.0",
+      schema_version: "1.0.0",
+      nonce: null,
+      originating_event_id: input.event.event_id as unknown as string,
+      recipient: input.recipient as unknown as string,
+      reward: input.reward,
+    } as unknown as Record<string, unknown> & {
+      readonly $id: string;
+      readonly nonce: string | null;
+    };
+    const id = await Effect.runPromise(computeEventId(preimage));
+    return id as unknown as EventId;
   };
-  const grantedEventIdProvider =
-    config.nextGrantedEventIdProvider ?? defaultGrantedEventId;
+  // Test seam: a caller MAY still inject a synthetic provider (the conformance
+  // harness uses this), but production derives deterministically.
+  const grantedEventIdProvider = config.nextGrantedEventIdProvider;
   const timestampProvider =
     config.timestampProvider ?? (() => new Date().toISOString());
 
@@ -272,9 +368,18 @@ export const makePostgresAtomicCompletion = (
     let attempt = 0;
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      const client: EventStorePostgresClient = await pool.connect();
+      // Defect #21.2 fix: pool.connect() runs INSIDE the try. A connect
+      // rejection (pool exhaustion / DB unreachable / shutdown race) is the most
+      // common transient fault; outside the try it would surface through
+      // Effect.promise as an unrecoverable Effect DEFECT, breaking the "NEVER
+      // throws — every failure is a sealed AtomicCompletionError" contract.
+      // Inside the try it lands in the catch → a retryable
+      // RewardAdapterUnavailable. `began` stays false, so the ROLLBACK is
+      // correctly skipped (no txn was opened).
+      let client: EventStorePostgresClient | undefined;
       let began = false;
       try {
+        client = await pool.connect();
         await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
         began = true;
 
@@ -369,7 +474,14 @@ export const makePostgresAtomicCompletion = (
         //
         // The (originating_event_id, recipient) PRIMARY KEY is the idempotency
         // guard. On the SAME client, so it commits with steps 1 + 3.
-        const grantedEventId = grantedEventIdProvider();
+        //
+        // Defect #21.7: granted_event_id is DERIVED deterministically from the
+        // grant tuple (process-independent, restart-stable, collision-free),
+        // unless a test injected a synthetic provider.
+        const grantedEventId =
+          grantedEventIdProvider !== undefined
+            ? grantedEventIdProvider()
+            : await deriveGrantedEventId(input);
         const ts = timestampProvider();
         try {
           await client.query(
@@ -419,10 +531,22 @@ export const makePostgresAtomicCompletion = (
         // resource_transactions, all of which roll back with us. We do NOT
         // write resource_transactions ourselves (NG-1 + §12.1: the proc owns
         // that row). A None reward yields {0,0,0} → the proc no-ops.
+        //
+        // Defect #21.9: metadata now carries the caller's provenance
+        // (period_key/step_id) merged with idempotencyKey, matching the legacy
+        // path's `{ period_key, step_id }` + the proc's own
+        // `v_metadata || { idempotencyKey }`. Previously hard-coded to just
+        // { idempotencyKey }, which produced a disjoint metadata shape from
+        // legacy rows.
+        const procMetadata = {
+          ...(input.sourceMetadata ?? {}),
+          idempotencyKey: input.resourceIdempotencyKey,
+        };
         const { common, rare, legendary } = input.delta;
         if (common !== 0 || rare !== 0 || legendary !== 0) {
+          let procRows: ProcDeltaRow[] = [];
           try {
-            await client.query(
+            const procRes = await client.query<ProcDeltaRow>(
               `SELECT * FROM ${resourceFn}(
                  $1::text, $2::text, $3::integer, $4::integer, $5::integer,
                  $6::text, $7::jsonb, $8::text, $9::text
@@ -434,14 +558,30 @@ export const makePostgresAtomicCompletion = (
                 rare,
                 legendary,
                 input.sourceId ?? null,
-                JSON.stringify({ idempotencyKey: input.resourceIdempotencyKey }),
+                JSON.stringify(procMetadata),
                 input.resourceIdempotencyKey,
                 null,
               ],
             );
+            procRows = procRes.rows;
           } catch (mutErr) {
             await client.query("ROLLBACK");
             const code = pgErrorCode(mutErr);
+            // 23505 from the prod partial-unique index
+            // (user_address, resource_type, idempotency_key) is a DETERMINISTIC
+            // idempotency conflict — NOT a transient serialization failure.
+            // Defect #21.6: classify it non-retryable (retrying re-hits the same
+            // deterministic conflict forever). Surface as a non-retryable
+            // ResourceMutationFailed so retry.ts treats it as terminal.
+            if (code === PG_UNIQUE_VIOLATION) {
+              return ResourceMutationFailed.make({
+                reason:
+                  "apply_resource_mutation idempotency conflict: a ledger row " +
+                  "already exists for (user_address, resource_type, " +
+                  "idempotency_key) — deterministic, not retryable",
+                retryable: false,
+              });
+            }
             // Serialization failures retry the whole unit-of-work.
             if (
               (code === PG_SERIALIZATION_FAILURE || code === PG_DEADLOCK_DETECTED) &&
@@ -461,6 +601,41 @@ export const makePostgresAtomicCompletion = (
               retryable: !insufficient,
             });
           }
+
+          // ── Defect #21.4: enforce the bridge's idempotency invariant ────────
+          //
+          // The proc returns the ACTUAL deltas it applied (0 if its own
+          // idempotency check short-circuited because a ledger row with this
+          // idempotency_key already existed). The bridge previously DISCARDED
+          // this return value. The danger: the host's legacy resource key is
+          // coarse (activity+period+step+user — service.ts:~76), so two distinct
+          // event_id completions can share ONE resource key. The 2nd
+          // completion's event+grant would COMMIT while the proc no-ops →
+          // a durable completed-WITHOUT-reward (the exact failure this bridge
+          // exists to prevent).
+          //
+          // Two layers close this:
+          //   1. resourceIdempotencyKey MUST equal event_id (asserted at the
+          //      Effect boundary below, before the txn opens), so the resource
+          //      key is per-event and the coarse-key collision cannot arise.
+          //   2. Belt-and-suspenders HERE: if the proc applied ZERO net delta
+          //      while we EXPECTED a non-zero grant, the completion would commit
+          //      without the reward — so ROLLBACK and surface a non-retryable
+          //      failure instead of silently committing a completed-without-
+          //      reward.
+          const applied = sumProcDelta(procRows);
+          const expected = Math.abs(common) + Math.abs(rare) + Math.abs(legendary);
+          if (applied === 0 && expected > 0) {
+            await client.query("ROLLBACK");
+            return ResourceMutationFailed.make({
+              reason:
+                "bridge idempotency violation: apply_resource_mutation applied " +
+                "ZERO delta for a non-zero reward (a ledger row with this " +
+                "idempotency_key already exists for a DIFFERENT completion) — " +
+                "refusing to commit a completed-without-reward",
+              retryable: false,
+            });
+          }
         }
 
         if (crashAfter !== undefined) crashAfter("resource-mutation");
@@ -476,7 +651,7 @@ export const makePostgresAtomicCompletion = (
           ts: RFC3339(ts),
         } satisfies RewardGrantedRecord;
       } catch (txErr) {
-        if (began) {
+        if (began && client !== undefined) {
           try {
             await client.query("ROLLBACK");
           } catch {
@@ -491,6 +666,8 @@ export const makePostgresAtomicCompletion = (
           attempt += 1;
           continue;
         }
+        // A connect rejection (client === undefined) lands here too → a sealed
+        // retryable RewardAdapterUnavailable, never an Effect defect (#21.2).
         return RewardAdapterUnavailable.make({
           adapter_id: "postgres:atomic-completion",
           reason: `atomic completion failed: ${String(
@@ -498,7 +675,7 @@ export const makePostgresAtomicCompletion = (
           )}`.slice(0, 512),
         });
       } finally {
-        client.release();
+        if (client !== undefined) client.release();
       }
     }
   };
@@ -538,6 +715,32 @@ export const makePostgresAtomicCompletion = (
             }) as AtomicCompletionError,
           );
         }
+      }
+
+      // Defect #21.4 layer 1: the resource ledger key MUST be per-event. The
+      // host's legacy resource key is coarse (activity+period+step+user), so if
+      // the caller threaded a coarse key here, two distinct-event completions
+      // could share one resource key — the 2nd proc call no-ops WHILE its
+      // event+grant commit → a durable completed-WITHOUT-reward. Pinning the
+      // resource key to event_id (the per-completion canonical hash) makes that
+      // collision structurally impossible. Rejected BEFORE the txn opens
+      // (cheapest rejection first), as a permanent bad-input SchemaValidation.
+      if (
+        enforceResourceKeyIsEventId &&
+        input.resourceIdempotencyKey !== (input.event.event_id as unknown as string)
+      ) {
+        return yield* Effect.fail(
+          SchemaValidation.make({
+            event_type: ev.$id,
+            detail:
+              "resourceIdempotencyKey must equal event_id (defect #21.4): the " +
+              "resource ledger key must be per-event so the host's coarse legacy " +
+              "key cannot let two distinct completions share one resource key " +
+              "(completed-without-reward). " +
+              `got resourceIdempotencyKey=${String(input.resourceIdempotencyKey)}, ` +
+              `event_id=${String(input.event.event_id)}`,
+          }) as AtomicCompletionError,
+        );
       }
 
       const result = yield* Effect.promise(() => run(input));

@@ -33,6 +33,9 @@ import {
 import {
   type EventStorePostgresClient,
   type EventStorePostgresPool,
+  PG_DEADLOCK_DETECTED,
+  PG_SERIALIZATION_FAILURE,
+  pgErrorCode,
   type QueryResultRow,
 } from "./pool.js";
 
@@ -95,80 +98,154 @@ export const makePostgresProgressPort = (
     return res.rows[0];
   };
 
-  // advanceProgress under a FOR UPDATE row lock. Returns either the next
-  // ProgressRecord or a ProgressError describing the concurrency conflict.
+  // advanceProgress as a VERSION-GUARDED optimistic-CAS unit-of-work. Returns
+  // either the next ProgressRecord or a ProgressError describing the conflict.
+  //
+  // ── Defect #21.1 (first-advance lost-update) — the fix ──────────────────────
+  //
+  // The prior impl had a HOLE on the FIRST advance: when no row exists yet,
+  // `SELECT … FOR UPDATE` locks NOTHING (FOR UPDATE only locks rows that match;
+  // a non-existent row has nothing to lock). Two concurrent first-advances both
+  // read storedVersion=0, both pass `version_before(0) == 0`, and the
+  // `ON CONFLICT DO UPDATE` had NO version predicate — so the second writer
+  // silently CLOBBERED the first, and NEITHER returned ProgressConcurrentUpdate.
+  // For reward-granting progress that is a durable lost-update.
+  //
+  // The fix has two layers (belt-and-suspenders):
+  //
+  //   1. SERIALIZABLE isolation closes the empty-row PREDICATE race: two writers
+  //      that both observe "no row for (activity, identity)" cannot both commit
+  //      an INSERT — one is rolled back with SQLSTATE 40001 and retried, at
+  //      which point it sees the row the winner inserted.
+  //
+  //   2. A version-guarded `ON CONFLICT … DO UPDATE … WHERE ${table}.version =
+  //      $expected` is the deterministic CAS backstop that does NOT depend on a
+  //      retry firing: if a racing writer already advanced the row past the
+  //      expected version, the DO UPDATE's WHERE matches zero rows → rowCount 0
+  //      → we surface ProgressConcurrentUpdate for the loser. On a genuine first
+  //      INSERT (no conflict) rowCount is 1; on a CAS-matching update rowCount
+  //      is 1; only the CAS-LOSING update yields 0.
   const advancePromise = async (
     event: ProgressAdvanced,
   ): Promise<ProgressRecord | ProgressError> => {
-    const client: EventStorePostgresClient = await pool.connect();
-    try {
-      await client.query("BEGIN");
-      const res = await client.query<ProgressRow>(
-        `SELECT record_json, version FROM ${table}
-          WHERE activity_id = $1 AND identity_id = $2 LIMIT 1 FOR UPDATE`,
-        [event.activity_id as unknown as string, event.identity_id as unknown as string],
-      );
-      const stored = res.rows[0];
-      const storedRecord =
-        stored === undefined ? undefined : (stored.record_json as ProgressRecord);
-      const storedVersion = stored === undefined ? 0 : toInt(stored.version);
-
-      if (event.version_before !== storedVersion) {
-        await client.query("ROLLBACK");
-        return ProgressConcurrentUpdate.make({
-          activity_id: event.activity_id,
-          current_version: storedVersion,
-          attempted_version: event.version_before,
-        });
-      }
-
-      const mergedCompletions = storedRecord
-        ? [...storedRecord.steps_completed, ...event.new_step_completions]
-        : [...event.new_step_completions];
-      const last =
-        mergedCompletions.length === 0
-          ? null
-          : mergedCompletions[mergedCompletions.length - 1] ?? null;
-      const nextRecord: ProgressRecord = {
-        activity_id: event.activity_id,
-        identity_id: event.identity_id,
-        current_step: last?.step_id ?? null,
-        steps_completed: mergedCompletions,
-        last_advanced_event_id: event.event_id,
-        version: event.version_after,
-        lifecycle_state: "IN_PROGRESS",
-      };
-
-      await client.query(
-        `INSERT INTO ${table} (activity_id, identity_id, record_json, version, updated_at)
-         VALUES ($1, $2, $3::jsonb, $4, NOW())
-         ON CONFLICT (activity_id, identity_id)
-         DO UPDATE SET record_json = EXCLUDED.record_json,
-                       version = EXCLUDED.version,
-                       updated_at = NOW()`,
-        [
-          event.activity_id as unknown as string,
-          event.identity_id as unknown as string,
-          JSON.stringify(nextRecord),
-          event.version_after,
-        ],
-      );
-      await client.query("COMMIT");
-      return nextRecord;
-    } catch (e) {
+    let attempt = 0;
+    const MAX_RETRIES = 8;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      // Defect #21.2 fix: connect INSIDE the try so a connect rejection is a
+      // sealed AdapterUnavailable, not an Effect defect.
+      let client: EventStorePostgresClient | undefined;
       try {
-        await client.query("ROLLBACK");
-      } catch {
-        /* connection may already be aborted */
+        client = await pool.connect();
+        await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
+        const res = await client.query<ProgressRow>(
+          `SELECT record_json, version FROM ${table}
+            WHERE activity_id = $1 AND identity_id = $2 LIMIT 1 FOR UPDATE`,
+          [event.activity_id as unknown as string, event.identity_id as unknown as string],
+        );
+        const stored = res.rows[0];
+        const storedRecord =
+          stored === undefined ? undefined : (stored.record_json as ProgressRecord);
+        const storedVersion = stored === undefined ? 0 : toInt(stored.version);
+
+        if (event.version_before !== storedVersion) {
+          await client.query("ROLLBACK");
+          return ProgressConcurrentUpdate.make({
+            activity_id: event.activity_id,
+            current_version: storedVersion,
+            attempted_version: event.version_before,
+          });
+        }
+
+        const mergedCompletions = storedRecord
+          ? [...storedRecord.steps_completed, ...event.new_step_completions]
+          : [...event.new_step_completions];
+        const last =
+          mergedCompletions.length === 0
+            ? null
+            : mergedCompletions[mergedCompletions.length - 1] ?? null;
+        const nextRecord: ProgressRecord = {
+          activity_id: event.activity_id,
+          identity_id: event.identity_id,
+          current_step: last?.step_id ?? null,
+          steps_completed: mergedCompletions,
+          last_advanced_event_id: event.event_id,
+          version: event.version_after,
+          lifecycle_state: "IN_PROGRESS",
+        };
+
+        // Version-guarded upsert. The DO UPDATE only fires when the row's
+        // CURRENT version still equals the version_before we observed — so a
+        // racing writer that already advanced the row loses here (zero rows
+        // updated) instead of silently clobbering.
+        const upsert = await client.query(
+          `INSERT INTO ${table} (activity_id, identity_id, record_json, version, updated_at)
+           VALUES ($1, $2, $3::jsonb, $4, NOW())
+           ON CONFLICT (activity_id, identity_id)
+           DO UPDATE SET record_json = EXCLUDED.record_json,
+                         version = EXCLUDED.version,
+                         updated_at = NOW()
+             WHERE ${table}.version = $5`,
+          [
+            event.activity_id as unknown as string,
+            event.identity_id as unknown as string,
+            JSON.stringify(nextRecord),
+            event.version_after,
+            event.version_before,
+          ],
+        );
+
+        // rowCount 0 ⇒ the ON CONFLICT DO UPDATE's WHERE didn't match: a racing
+        // writer advanced the row past version_before between our SELECT and our
+        // upsert (the FOR UPDATE could not lock a row that didn't exist at SELECT
+        // time). This is the loser of a first-advance race → ConcurrentUpdate.
+        if ((upsert.rowCount ?? 0) === 0) {
+          await client.query("ROLLBACK");
+          // Re-read the now-current version for an accurate conflict payload.
+          const after = await client.query<ProgressRow>(
+            `SELECT version FROM ${table}
+              WHERE activity_id = $1 AND identity_id = $2 LIMIT 1`,
+            [event.activity_id as unknown as string, event.identity_id as unknown as string],
+          );
+          const currentVersion =
+            after.rows[0] === undefined ? storedVersion : toInt(after.rows[0].version);
+          return ProgressConcurrentUpdate.make({
+            activity_id: event.activity_id,
+            current_version: currentVersion,
+            attempted_version: event.version_before,
+          });
+        }
+
+        await client.query("COMMIT");
+        return nextRecord;
+      } catch (e) {
+        if (client !== undefined) {
+          try {
+            await client.query("ROLLBACK");
+          } catch {
+            /* connection may already be aborted */
+          }
+        }
+        // SERIALIZABLE conflict on the empty-row predicate race (40001) or a
+        // deadlock (40P01) → retry the whole CAS; the retry sees the winner's
+        // row and fails ConcurrentUpdate deterministically.
+        const code = pgErrorCode(e);
+        if (
+          (code === PG_SERIALIZATION_FAILURE || code === PG_DEADLOCK_DETECTED) &&
+          attempt < MAX_RETRIES
+        ) {
+          attempt += 1;
+          continue;
+        }
+        return ProgressAdapterUnavailable.make({
+          adapter_id: adapterId,
+          reason: `postgres advanceProgress failed: ${String(
+            e instanceof Error ? e.message : e,
+          )}`.slice(0, 512),
+        });
+      } finally {
+        if (client !== undefined) client.release();
       }
-      return ProgressAdapterUnavailable.make({
-        adapter_id: adapterId,
-        reason: `postgres advanceProgress failed: ${String(
-          e instanceof Error ? e.message : e,
-        )}`.slice(0, 512),
-      });
-    } finally {
-      client.release();
     }
   };
 

@@ -7,6 +7,8 @@ import {
   computeEventId,
   computeEventIdSync,
   EventEnvelope,
+  EventError,
+  EventStoreUnavailable,
   isMutatingEvent,
   NonceRequired,
   ProgressAdvanced,
@@ -14,6 +16,7 @@ import {
   RewardFailedEvent,
   RewardGrantedEvent,
   RewardPendingEvent,
+  SchemaValidation,
 } from "./index.js";
 
 const expectFail = <A, I>(schema: Schema.Schema<A, I>, input: unknown) => {
@@ -385,5 +388,46 @@ describe("EventError sealed union", () => {
       reason: "missing nonce",
     });
     expect(v._tag).toBe("NonceRequired");
+  });
+
+  // Defect #21.8 (ADDITIVE contract extension): EventStoreUnavailable was added
+  // to the sealed union for the infra-transient append fault, distinct from the
+  // permanent-bad-input SchemaValidation. This pins (a) the new variant decodes,
+  // (b) it is a member of the EventError union, and (c) it is a DISTINCT tag
+  // from SchemaValidation — the conflation the defect closed.
+  it("EventStoreUnavailable (defect #21.8) decodes + is a distinct EventError member", () => {
+    const v = Schema.decodeUnknownSync(EventStoreUnavailable)({
+      _tag: "EventStoreUnavailable",
+      event_type: "EventStoreContract.append",
+      reason: "serialization storm exhausted retries",
+      retryable: true,
+    });
+    expect(v._tag).toBe("EventStoreUnavailable");
+    expect(v.retryable).toBe(true);
+
+    // It is a member of the sealed union…
+    const asUnion = Schema.decodeUnknownSync(EventError)({
+      _tag: "EventStoreUnavailable",
+      event_type: "EventStoreContract.append",
+      reason: "db unreachable",
+      retryable: true,
+    });
+    expect(asUnion._tag).toBe("EventStoreUnavailable");
+
+    // …and a DISTINCT tag from SchemaValidation (the previously-conflated one).
+    const sv = SchemaValidation.make({ event_type: "x", detail: "bad input" });
+    expect(sv._tag).not.toBe(v._tag);
+  });
+
+  it("EXISTING EventError variants are unchanged (additive-only — defect #21.8 review flag)", () => {
+    // The change MUST NOT have mutated any existing variant. Spot-check the two
+    // most adjacent: SchemaValidation (the conflated tag) still decodes its
+    // original shape, and the union still accepts it.
+    const sv = Schema.decodeUnknownSync(EventError)({
+      _tag: "SchemaValidation",
+      event_type: "EventStoreContract.append",
+      detail: "event_id mismatch",
+    });
+    expect(sv._tag).toBe("SchemaValidation");
   });
 });

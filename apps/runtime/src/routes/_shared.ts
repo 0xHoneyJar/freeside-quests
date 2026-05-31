@@ -62,6 +62,12 @@ const HTTP_FOR_TAG: Record<string, number> = {
   NonceRequired: 400,
   NonceCollision: 409,
   CanonicalizationFailed: 422,
+  // Defect #21.8: infra-transient event-store fault → 503 (retryable),
+  // distinct from SchemaValidation's 422 (permanent bad input). Previously a
+  // retry-exhausted serialization storm returned SchemaValidation → 422,
+  // telling the client the input was permanently bad when the store was just
+  // momentarily unreachable.
+  EventStoreUnavailable: 503,
 };
 
 /**

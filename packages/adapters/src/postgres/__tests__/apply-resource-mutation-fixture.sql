@@ -48,6 +48,24 @@ CREATE TABLE IF NOT EXISTS resource_transactions (
   created_at      timestamptz NOT NULL DEFAULT now()
 );
 
+-- ----------------------------------------------------------------------------
+-- Defect #21.5: the PROD partial-unique index was MISSING from this fixture, so
+-- the proc's check-then-INSERT had a TOCTOU window with NO race-safe backstop in
+-- tests (two concurrent calls could both pass the existence check, then both
+-- INSERT, double-applying the ledger). The canonical prod index — grounded in
+-- cubquests-interface/supabase/migrations/
+--   20251102225424_fix_idempotency_key_column_type_to_text.sql
+-- (and originally 20251018_add_resource_idempotency.sql) — is:
+--
+--   (user_address, resource_type, idempotency_key) WHERE idempotency_key IS NOT NULL
+--
+-- With it present, the LOSER of a check-then-insert race raises 23505 instead of
+-- double-applying. The bridge classifies that 23505 as NON-retryable (defect
+-- #21.6) — proven by the divergent-key concurrency test.
+CREATE UNIQUE INDEX IF NOT EXISTS resource_transactions_user_type_idempotency_idx
+  ON resource_transactions (user_address, resource_type, idempotency_key)
+  WHERE idempotency_key IS NOT NULL;
+
 -- gen_random_uuid lives in pgcrypto on some images; ensure it's available.
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 

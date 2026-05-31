@@ -120,7 +120,18 @@ CREATE TABLE IF NOT EXISTS reward_grants (
   ts                   TEXT        NOT NULL,   -- RFC3339Date string
   inserted_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-  CONSTRAINT reward_grants_pkey PRIMARY KEY (originating_event_id, recipient)
+  CONSTRAINT reward_grants_pkey PRIMARY KEY (originating_event_id, recipient),
+
+  -- Defect #21.7 fail-closed backstop: granted_event_id MUST be globally
+  -- unique. The atomic-completion bridge derives it DETERMINISTICALLY from the
+  -- grant tuple (a different tuple → a different sha256), so distinct grants
+  -- never collide; a RETRY of the same grant is rejected upstream by the PK
+  -- before reaching here. This UNIQUE turns any RESIDUAL collision (e.g. a
+  -- legacy in-process-counter provider that resets on redeploy) into a hard
+  -- 23505 FAILURE instead of a silent overwrite that corrupts retry.ts's D18
+  -- AlreadyGranted recovery (.find on granted_event_id). Fail closed, never
+  -- silently wrong for reward-granting code.
+  CONSTRAINT reward_grants_granted_event_id_uniq UNIQUE (granted_event_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_reward_grants_recipient
@@ -129,9 +140,21 @@ CREATE INDEX IF NOT EXISTS idx_reward_grants_recipient
 -- ============================================================================
 -- progress_records — backs makePostgresProgressPort (ProgressPort · CL-Progress-1).
 --
---   CL-Progress-1 (optimistic concurrency): advanceProgress checks
---     version_before == stored version inside a FOR-UPDATE transaction; the
---     loser of a race sees the bumped version and fails ConcurrentUpdate.
+--   CL-Progress-1 (optimistic concurrency): advanceProgress runs at
+--     SERIALIZABLE isolation and upserts with a VERSION-GUARDED
+--     `ON CONFLICT … DO UPDATE … WHERE version = version_before`. Two layers
+--     compose so the FIRST advance (no row yet) is race-safe:
+--       1. SERIALIZABLE predicate-locks the empty (activity, identity) so two
+--          concurrent first-advances cannot both INSERT (loser → 40001, retry).
+--       2. The version-guard makes the DO UPDATE a deterministic CAS: a racing
+--          writer that already advanced the row past version_before updates
+--          ZERO rows → the loser surfaces ConcurrentUpdate.
+--     NOTE (defect #21.1): a bare `FOR UPDATE` + unguarded `DO UPDATE` did NOT
+--     deliver this — FOR UPDATE locks nothing on a not-yet-existent row, so two
+--     first-advances both saw version 0 and the second silently clobbered the
+--     first. The version-guard + SERIALIZABLE is what actually delivers the
+--     guarantee this comment claims. The `version` column is the durable
+--     concurrency token.
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS progress_records (

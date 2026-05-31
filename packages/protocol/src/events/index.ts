@@ -27,6 +27,7 @@ export {
   CanonicalizationFailed,
   DuplicateEvent,
   EventError,
+  EventStoreUnavailable,
   NonceCollision,
   NonceRequired,
   PartitionScopeMismatch,

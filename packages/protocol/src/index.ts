@@ -221,6 +221,7 @@ export {
   DuplicateEvent,
   EventEnvelope,
   EventError,
+  EventStoreUnavailable,
   eventEnvelopeFields,
   isMutatingEvent,
   NonceCollision,

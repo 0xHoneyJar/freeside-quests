@@ -51,6 +51,7 @@ import {
   type EventFilter,
   type EventId,
   type EventStoreContract,
+  EventStoreUnavailable,
   isMutatingEvent,
   NonceRequired,
   type PartitionKey,
@@ -150,8 +151,16 @@ export const makePostgresEventStore = (
     let attempt = 0;
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      const client: EventStorePostgresClient = await pool.connect();
+      // Defect #21.2 fix: pool.connect() MUST run INSIDE the try. It is the
+      // MOST COMMON transient fault (pool exhaustion / DB unreachable / a
+      // shutdown race) — and a connect rejection outside the try, surfaced
+      // through Effect.promise, becomes an unrecoverable Effect DEFECT, breaking
+      // the "NEVER throws — every failure is a sealed error" contract on exactly
+      // the fault most likely to fire in production. Inside the try, a connect
+      // rejection lands in the catch below → a retryable EventStoreUnavailable.
+      let client: EventStorePostgresClient | undefined;
       try {
+        client = await pool.connect();
         await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
 
         const scope = options.partition_key.scope;
@@ -250,32 +259,42 @@ export const makePostgresEventStore = (
           monotonic_sequence: nextSeq,
         } as TipDescriptor;
       } catch (txErr) {
-        // Roll back best-effort; the connection is released in finally.
-        try {
-          await client.query("ROLLBACK");
-        } catch {
-          /* connection may already be aborted */
+        // Roll back best-effort; the connection is released in finally. `client`
+        // may be undefined here if pool.connect() itself rejected — guard it.
+        if (client !== undefined) {
+          try {
+            await client.query("ROLLBACK");
+          } catch {
+            /* connection may already be aborted */
+          }
         }
         const code = pgErrorCode(txErr);
-        if (
-          (code === PG_SERIALIZATION_FAILURE || code === PG_DEADLOCK_DETECTED) &&
-          attempt < maxRetries
-        ) {
+        const transient =
+          code === PG_SERIALIZATION_FAILURE || code === PG_DEADLOCK_DETECTED;
+        if (transient && attempt < maxRetries) {
           attempt += 1;
           continue;
         }
-        // Non-retryable infra failure — surface as SchemaValidation-adjacent
-        // adapter error. The contract's EventError union has no generic
-        // "AdapterUnavailable", so we map infra faults to SchemaValidation with
-        // a clear detail (the conformance suite never exercises this path).
-        return SchemaValidation.make({
+        // Infra fault reaching here is one of:
+        //   - a serialization/deadlock STORM that exhausted maxRetries
+        //     (transient === true, but the retry budget is spent), OR
+        //   - any other unexpected DB/connection failure.
+        // Defect #21.8 fix: BOTH are infra-transient, NOT bad input. The prior
+        // impl returned SchemaValidation here — the SAME tag non-retryable
+        // bad-input uses — which _shared.ts maps to HTTP 422 (permanent). That
+        // told the client to stop retrying a deterministically-bad request when
+        // the truth was "the store was momentarily overwhelmed; retry later".
+        // EventStoreUnavailable maps to 503 and carries `retryable` so callers
+        // (and the route layer) treat it as the transient fault it is.
+        return EventStoreUnavailable.make({
           event_type: "EventStoreContract.append",
-          detail: `postgres append failed: ${String(
+          reason: `postgres append failed: ${String(
             txErr instanceof Error ? txErr.message : txErr,
           )}`.slice(0, 1024),
+          retryable: true,
         });
       } finally {
-        client.release();
+        if (client !== undefined) client.release();
       }
     }
   };
