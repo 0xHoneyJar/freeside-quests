@@ -103,6 +103,17 @@ export {
 } from "./badge/index.js";
 export { BadgeIssuancePortAssetPipelineStubLayer } from "./badge/asset-pipeline-stub.js";
 
+// BadgeIssuancePort static-URI adapter (VB.2) — third Layer option:
+// resolves a stable CDN BadgeArtifact from a static badgeId→uri map. The
+// artifact payoff for the verify-badge first consumer. Additive — Null +
+// asset-pipeline-stub Layers untouched; same Tag identity.
+export {
+  BadgeIssuancePortStaticLayer,
+  STATIC_BADGE_REGISTRY,
+  resolveStaticBadge,
+  type StaticBadgeDescriptor,
+} from "./badge/static-uri.js";
+
 // EngineConfig (§4.5) — per-world quest engine configuration
 export {
   EngineConfig,

@@ -127,6 +127,15 @@ export {
   WorldSubSchemaId,
 } from "./activity/index.js";
 
+// verify Activity fixture (VB.1) — `verify` authored as DATA (Quest ·
+// one-time · reward None). A typed constant; activities-api is event-sourced
+// with no catalog surface — see verify-activity.ts header for the rationale.
+export {
+  VERIFY_ACTIVITY,
+  VERIFY_ACTIVITY_ID,
+  VERIFY_ACTIVITY_INPUT,
+} from "./activity/index.js";
+
 // Canonical encoding helpers (T1.12 · D14 · §5.3 + §5.8)
 export {
   bigintFromDecimal,

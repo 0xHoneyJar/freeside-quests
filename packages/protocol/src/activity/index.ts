@@ -49,3 +49,12 @@ export {
   VerificationSignedMemoTx,
   VerificationWebhookHmac,
 } from "./ActivityStep.js";
+
+// verify Activity fixture (VB.1) — the `verify` activity authored as DATA
+// (Quest · one-time · reward None; artifact via engine BadgeIssuancePort).
+// A typed constant, NOT a catalog — activities-api is purely event-sourced.
+export {
+  VERIFY_ACTIVITY,
+  VERIFY_ACTIVITY_ID,
+  VERIFY_ACTIVITY_INPUT,
+} from "./fixtures/verify-activity.js";
