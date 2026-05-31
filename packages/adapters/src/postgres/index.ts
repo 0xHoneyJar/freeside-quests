@@ -20,6 +20,18 @@ export type {
   PostgresRewardPortHandle,
 } from "./reward.js";
 
+export {
+  makePostgresAtomicCompletion,
+  ResourceMutationFailed,
+} from "./atomic-completion.js";
+export type {
+  AtomicCompletionError,
+  GrantAndCompleteInput,
+  PostgresAtomicCompletionConfig,
+  PostgresAtomicCompletionHandle,
+  ResourceMutationDelta,
+} from "./atomic-completion.js";
+
 export { makePostgresProgressPort } from "./progress.js";
 export type {
   PostgresProgressPortConfig,
