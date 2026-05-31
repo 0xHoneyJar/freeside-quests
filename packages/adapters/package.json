@@ -15,6 +15,10 @@
     "./in-memory": {
       "types": "./dist/in-memory/index.d.ts",
       "import": "./dist/in-memory/index.js"
+    },
+    "./postgres": {
+      "types": "./dist/postgres/index.d.ts",
+      "import": "./dist/postgres/index.js"
     }
   },
   "files": ["dist", "src", "README.md"],

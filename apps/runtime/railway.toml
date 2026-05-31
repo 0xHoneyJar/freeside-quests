@@ -1,0 +1,42 @@
+# Railway service config — activities-api HTTP runtime (SDD §6 · FR-A3).
+#
+# Deploy posture (SDD §6.1): AUTO-DEPLOY-ON-MERGE via Railway's GitHub
+# integration — NOT `railway up` (the freeside-characters precedent). The
+# operator wires the GitHub repo to a Railway service; merges to the deploy
+# branch trigger a build from this Dockerfile.
+#
+# T-A5 (operator-gated) provisions the service, sets the env vars below, and
+# points DNS activities.0xhoneyjar.xyz at it. This file is the build+deploy
+# contract; it does NOT provision anything by itself.
+
+[build]
+builder = "dockerfile"
+# Build from the repo root so the Dockerfile can COPY the workspace packages.
+dockerfilePath = "apps/runtime/Dockerfile"
+
+[deploy]
+# /health binds 0.0.0.0 (server.ts) so Railway's probe can reach it.
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+# SIGTERM → server.ts drains + closes the pool; give it room.
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+# ── Env the operator MUST set (T-A5) ─────────────────────────────────────────
+# Railway injects PORT only for Nixpacks/buildpacks; for Dockerfile services it
+# does NOT — server.ts reads process.env.PORT (default 8787). Railway routes
+# the public domain to whatever port the service listens on, so EITHER set
+# PORT explicitly here OR rely on the 8787 default + Railway target-port config.
+#
+#   TENANT_CUBQUEST_DATABASE_URL  — the cubquest-db connection string (Seam-B
+#                                   read binding). Until set, the read plane
+#                                   serves degraded envelopes (health stays 200,
+#                                   beacon serves). Prefer Railway's
+#                                   `${{ Postgres.DATABASE_URL }}` reference if
+#                                   cubquest-db is provisioned in the same
+#                                   project; otherwise paste the external URL.
+#   DATABASE_URL                  — generic fallback if the TENANT_ var is unset.
+#   PORT                          — optional; default 8787. Set if Railway's
+#                                   target-port detection needs an explicit value.
+#
+# These are intentionally NOT defaulted here — no secrets in the repo.

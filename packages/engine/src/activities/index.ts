@@ -46,3 +46,22 @@ export {
   type RetryError,
   type RetryPolicy,
 } from "./retry.js";
+
+// Wired completion unit-of-work (T-A2.5 · cq.16 — the write-path wire)
+export {
+  makeActivityCompletion,
+  resolveResourceTier,
+  translateResourceReward,
+  CompletionGranted,
+  CompletionDeferred,
+  UnknownResourceKind,
+  IdentityResolutionFailed,
+  AtomicGrantFailed,
+  DeferredRecordingFailed,
+  type ActivityCompletionConfig,
+  type ActivityCompletionHandle,
+  type CompleteActivityInput,
+  type CompletionError,
+  type CompletionOutcome,
+  type ResourceTier,
+} from "./complete.js";

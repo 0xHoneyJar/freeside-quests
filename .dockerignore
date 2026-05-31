@@ -1,0 +1,13 @@
+# Keep the Docker build context lean — bun install regenerates node_modules,
+# and the runtime needs only source (no dist; Bun runs TS directly).
+**/node_modules
+**/dist
+.git
+.beads
+.run
+.ck
+grimoires
+**/__tests__
+**/*.test.ts
+**/.DS_Store
+*.log

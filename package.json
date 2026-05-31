@@ -15,7 +15,8 @@
     "packages/mcp-tools",
     "packages/engine",
     "packages/ui",
-    "packages/discord-renderer"
+    "packages/discord-renderer",
+    "apps/runtime"
   ],
   "scripts": {
     "build": "bun run --filter '*' build",
@@ -30,7 +31,9 @@
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",
     "@types/bun": "latest",
+    "@types/pg": "^8.20.0",
     "@vitest/coverage-v8": "^3.0.0",
+    "pg": "^8.21.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
   }

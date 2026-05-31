@@ -20,3 +20,18 @@ export {
   type RewardPortConformanceFactory,
   type RewardPortConformanceFactoryConfig,
 } from "./reward-port-conformance.js";
+
+export {
+  runProgressPortConformanceSuite,
+  type ProgressPortConformanceBundle,
+  type ProgressPortConformanceFactory,
+  type ProgressPortConformanceFactoryConfig,
+} from "./progress-port-conformance.js";
+
+export {
+  runIdentityResolverConformanceSuite,
+  type IdentityBindingForConformance,
+  type IdentityResolverConformanceBundle,
+  type IdentityResolverConformanceFactory,
+  type IdentityResolverConformanceFactoryConfig,
+} from "./identity-resolver-conformance.js";
